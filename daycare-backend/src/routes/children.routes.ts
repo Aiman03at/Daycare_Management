@@ -1,10 +1,11 @@
 import { Router } from "express";
 import pool from "../db";
-
-const router = Router();
+import { authMiddleware } from "../middleware/auth";
+import { requireAdmin } from "../middleware/role";
+const router = Router();  
 
 // create child
-router.post("/", async (req, res) => {
+router.post("/",authMiddleware, async (req, res) => {
   const { name, age, parent_name, parent_phone } = req.body;
 
   try {
@@ -24,7 +25,7 @@ router.post("/", async (req, res) => {
 
 
 // GET all children
-router.get("/", async (req, res) => {
+router.get("/", authMiddleware, async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM children ORDER BY id DESC");
     res.json(result.rows);
@@ -37,7 +38,7 @@ router.get("/", async (req, res) => {
 
 //GET SINGLE CHILD BY ID
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -59,7 +60,7 @@ router.get("/:id", async (req, res) => {
 
 
 //Uodate Child
-router.put("/:id", async (req, res) => {
+router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, age, parent_name, parent_phone } = req.body;
@@ -84,7 +85,7 @@ router.put("/:id", async (req, res) => {
 
 
 //DELETE CHILD
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authMiddleware,requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
