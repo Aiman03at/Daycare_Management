@@ -3,8 +3,10 @@ import express from "express";
 import dotenv from "dotenv";
 import "./db/index";
 import cors from "cors";
+import path from "path";
 import childRoutes from "./routes/children.routes";
 import authRoutes from "./routes/auth.routes";
+import attendanceRoutes from "./routes/attendance.route";
 dotenv.config();
 
 
@@ -16,10 +18,11 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 app.use("/api/children", childRoutes);
 app.use("/api/auth", authRoutes);
-
+app.use("/api/attendance", attendanceRoutes);
 app.get("/", (_, res) => {
   res.send("API running");
 });

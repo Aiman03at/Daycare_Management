@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import  pool  from "../db";
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || "SECRET_KEY";
 
 // REGISTER
 router.post("/register", async (req, res) => {
@@ -44,7 +45,7 @@ router.post("/login", async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, role: user.role },
-      "SECRET_KEY",
+      JWT_SECRET,
       { expiresIn: "1d" }
     );
 
