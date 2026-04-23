@@ -3,8 +3,9 @@ import { NavLink } from "react-router-dom";
 export default function Sidebar() {
   const menu = [
     { name: "Dashboard", path: "/" },
-    { name: "Activities", path: "/activities" },
     { name: "Children", path: "/children" },
+    { name: "Activities", path: "/activities" },
+    { name: "Add New", path: "/add-new" },
     { name: "Attendance", path: "/attendance" },
   ];
 

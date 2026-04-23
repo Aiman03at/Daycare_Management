@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import ProtectedRoute from "./routes/ProtectedRoutes";
 import Attendance from "./pages/Attendance";
 import Activities from "./pages/Activities";
+import AddNew from "./pages/AddNew";
 
 export default function App() {
   return (
@@ -47,6 +48,17 @@ export default function App() {
             <ProtectedRoute>
               <AppLayout>
                 <Activities />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/add-new"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <AddNew />
               </AppLayout>
             </ProtectedRoute>
           }

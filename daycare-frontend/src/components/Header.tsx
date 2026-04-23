@@ -11,6 +11,7 @@ export default function Header() {
     "/children": "Children",
     "/attendance": "Attendance",
     "/activities": "Activities",
+    "/add-new": "Add New",
   };
 
   const displayName = user?.name || user?.email || "Guest";

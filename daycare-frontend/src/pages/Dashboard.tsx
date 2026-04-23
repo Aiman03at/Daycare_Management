@@ -6,7 +6,6 @@ import AttendanceRoster, {
   getAttendanceStatus,
 } from "../components/AttendanceRoster";
 import Card from "../components/Card";
-import { getStoredUser } from "../auth/session";
 import { normalizeChild, type ChildRecord } from "../data/ageGroups";
 
 interface Announcement {
@@ -31,20 +30,11 @@ function isBirthdayToday(birthDate?: string | null) {
 }
 
 export default function Dashboard() {
-  const user = getStoredUser();
   const [children, setChildren] = useState<ChildRecord[]>([]);
   const [records, setRecords] = useState<AttendanceRosterItem[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [reasonSelections, setReasonSelections] = useState<Record<number, AbsentReason>>({});
   const [loadingChildId, setLoadingChildId] = useState<number | null>(null);
-  const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false);
-  const [announcementForm, setAnnouncementForm] = useState({
-    title: "",
-    detail: "",
-    announcementDate: new Date().toISOString().split("T")[0],
-  });
-
-  const canPostAnnouncements = user?.role === "admin" || user?.role === "educator";
 
   const fetchChildren = async () => {
     const response = await api.get("/children");
@@ -150,39 +140,6 @@ export default function Dashboard() {
       year: "numeric",
     }).format(new Date(value));
 
-  const handleAnnouncementFieldChange = (
-    field: "title" | "detail" | "announcementDate",
-    value: string
-  ) => {
-    setAnnouncementForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
-  const handleAnnouncementSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsPostingAnnouncement(true);
-
-    try {
-      await api.post("/announcements", {
-        title: announcementForm.title,
-        detail: announcementForm.detail,
-        announcement_date: announcementForm.announcementDate,
-      });
-
-      setAnnouncementForm({
-        title: "",
-        detail: "",
-        announcementDate: new Date().toISOString().split("T")[0],
-      });
-
-      await fetchAnnouncements();
-    } finally {
-      setIsPostingAnnouncement(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <section className="grid gap-6 xl:grid-cols-[1.7fr_1fr]">
@@ -233,43 +190,6 @@ export default function Dashboard() {
                 {announcements.length} posted
               </span>
             </div>
-
-            {canPostAnnouncements && (
-              <form onSubmit={handleAnnouncementSubmit} className="mt-4 space-y-3 rounded-2xl bg-slate-50 p-4">
-                <input
-                  value={announcementForm.title}
-                  onChange={(event) => handleAnnouncementFieldChange("title", event.target.value)}
-                  placeholder="Announcement title"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-                  required
-                />
-                <textarea
-                  value={announcementForm.detail}
-                  onChange={(event) => handleAnnouncementFieldChange("detail", event.target.value)}
-                  placeholder="Write the announcement details"
-                  className="min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-                  required
-                />
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <input
-                    type="date"
-                    value={announcementForm.announcementDate}
-                    onChange={(event) =>
-                      handleAnnouncementFieldChange("announcementDate", event.target.value)
-                    }
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={isPostingAnnouncement}
-                    className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-                  >
-                    {isPostingAnnouncement ? "Posting..." : "Post announcement"}
-                  </button>
-                </div>
-              </form>
-            )}
 
             <div className="mt-4 space-y-4">
               {announcements.length === 0 && (
