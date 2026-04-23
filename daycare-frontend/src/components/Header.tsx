@@ -11,6 +11,12 @@ export default function Header() {
     "/children": "Children",
     "/attendance": "Attendance",
     "/activities": "Activities",
+    "/meals": "Meals",
+    "/toilets": "Toilets",
+    "/incidents": "Incident / Accident",
+    "/health": "Health",
+    "/supplies": "Supplies",
+    "/sleep": "Sleep",
     "/add-new": "Add New",
   };
 

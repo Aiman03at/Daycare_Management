@@ -5,6 +5,12 @@ export default function Sidebar() {
     { name: "Dashboard", path: "/" },
     { name: "Children", path: "/children" },
     { name: "Activities", path: "/activities" },
+    { name: "Meals", path: "/meals" },
+    { name: "Toilets", path: "/toilets" },
+    { name: "Incident/Accident", path: "/incidents" },
+    { name: "Health", path: "/health" },
+    { name: "Supplies", path: "/supplies" },
+    { name: "Sleep", path: "/sleep" },
     { name: "Add New", path: "/add-new" },
     { name: "Attendance", path: "/attendance" },
   ];
@@ -28,7 +34,7 @@ export default function Sidebar() {
         </p>
       </div>
 
-      <nav className="p-4 space-y-2">
+      <nav className="space-y-2 overflow-y-auto p-4">
         {menu.map((item) => (
           <NavLink
             key={item.name}
