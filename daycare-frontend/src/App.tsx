@@ -1,18 +1,69 @@
-
-import Login from "./pages/Login";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import AppLayout from "./Layouts/AppLayout";
+import Dashboard from "./pages/Dashboard";
 import Children from "./pages/Children";
+import Login from "./pages/Login";
+import ProtectedRoute from "./routes/ProtectedRoutes";
+import Attendance from "./pages/Attendance";
+import Activities from "./pages/Activities";
 
-function App() {
-  
-  
+export default function App() {
   return (
-    <div>
-      <Login/>
+    <BrowserRouter>
+      <Routes>
 
+         <Route path="/login" element={<Login />} /> 
 
-     <Children/>
-    </div>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Dashboard />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={<Navigate to="/" replace />}
+        />
+
+        <Route
+          path="/children"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Children />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/activities"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Activities />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/attendance"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Attendance />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App;

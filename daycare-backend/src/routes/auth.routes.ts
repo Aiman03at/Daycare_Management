@@ -5,10 +5,16 @@ import  pool  from "../db";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "SECRET_KEY";
+const VALID_ROLES = new Set(["admin", "educator", "parent"]);
 
 // REGISTER
 router.post("/register", async (req, res) => {
   const { name, email, password, role } = req.body;
+  const normalizedRole = String(role || "").toLowerCase();
+
+  if (!VALID_ROLES.has(normalizedRole)) {
+    return res.status(400).json({ message: "Role must be admin, educator, or parent" });
+  }
 
   try {
     const hashed = await bcrypt.hash(password, 10);
@@ -16,7 +22,7 @@ router.post("/register", async (req, res) => {
     const result = await pool.query(
       `INSERT INTO users(name,email,password,role)
        VALUES($1,$2,$3,$4) RETURNING id,email,role`,
-      [name, email, hashed, role]
+      [name, email, hashed, normalizedRole]
     );
 
     res.json(result.rows[0]);
@@ -37,6 +43,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "User not found" });
 
     const user = result.rows[0];
+    const normalizedUserRole = String(user.role || "").toLowerCase();
 
     const match = await bcrypt.compare(password, user.password);
 
@@ -44,12 +51,20 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid password" });
 
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, role: normalizedUserRole },
       JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    res.json({ token });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: normalizedUserRole
+      }
+    });
 
   } catch (err) {
     console.error(err);

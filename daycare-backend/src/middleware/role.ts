@@ -6,7 +6,7 @@ export const requireAdmin = (
   res: Response,
   next: NextFunction
 ) => {
-  if (req.user.role !== "admin")
+  if (String(req.user?.role || "").toLowerCase() !== "admin")
     return res.status(403).json({ message: "Admins only" });
 
   next();

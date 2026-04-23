@@ -7,6 +7,7 @@ import path from "path";
 import childRoutes from "./routes/children.routes";
 import authRoutes from "./routes/auth.routes";
 import attendanceRoutes from "./routes/attendance.route";
+import announcementRoutes from "./routes/announcements.routes";
 dotenv.config();
 
 
@@ -23,6 +24,7 @@ app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 app.use("/api/children", childRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/announcements", announcementRoutes);
 app.get("/", (_, res) => {
   res.send("API running");
 });

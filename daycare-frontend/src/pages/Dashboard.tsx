@@ -1,0 +1,349 @@
+import { useEffect, useMemo, useState } from "react";
+import { api } from "../api/client";
+import AttendanceRoster, {
+  type AbsentReason,
+  type AttendanceRosterItem,
+  getAttendanceStatus,
+} from "../components/AttendanceRoster";
+import Card from "../components/Card";
+import { getStoredUser } from "../auth/session";
+import { normalizeChild, type ChildRecord } from "../data/ageGroups";
+
+interface Announcement {
+  id: number;
+  title: string;
+  detail: string;
+  announcement_date: string;
+}
+
+function isBirthdayToday(birthDate?: string | null) {
+  if (!birthDate) {
+    return false;
+  }
+
+  const today = new Date();
+  const date = new Date(birthDate);
+
+  return (
+    date.getUTCMonth() === today.getMonth() &&
+    date.getUTCDate() === today.getDate()
+  );
+}
+
+export default function Dashboard() {
+  const user = getStoredUser();
+  const [children, setChildren] = useState<ChildRecord[]>([]);
+  const [records, setRecords] = useState<AttendanceRosterItem[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [reasonSelections, setReasonSelections] = useState<Record<number, AbsentReason>>({});
+  const [loadingChildId, setLoadingChildId] = useState<number | null>(null);
+  const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: "",
+    detail: "",
+    announcementDate: new Date().toISOString().split("T")[0],
+  });
+
+  const canPostAnnouncements = user?.role === "admin" || user?.role === "educator";
+
+  const fetchChildren = async () => {
+    const response = await api.get("/children");
+    setChildren(response.data.map(normalizeChild));
+  };
+
+  const fetchAttendance = async () => {
+    const response = await api.get("/attendance/roster");
+    setRecords(response.data);
+  };
+
+  const fetchAnnouncements = async () => {
+    const response = await api.get("/announcements");
+    setAnnouncements(response.data);
+  };
+
+  const refreshDashboard = async () => {
+    await Promise.all([fetchChildren(), fetchAttendance(), fetchAnnouncements()]);
+  };
+
+  useEffect(() => {
+    refreshDashboard();
+  }, []);
+
+  const stats = useMemo(() => {
+    const checkedIn = records.filter((record) => !!record.check_in && !record.check_out).length;
+    const checkedOut = records.filter((record) => !!record.check_out).length;
+    const absent = records.filter((record) => !!record.absent_reason).length;
+
+    return {
+      total: children.length,
+      checkedIn,
+      checkedOut,
+      absent,
+    };
+  }, [children.length, records]);
+
+  const birthdaysToday = useMemo(
+    () => children.filter((child) => isBirthdayToday(child.birthDate)),
+    [children]
+  );
+
+  const todayLabel = new Intl.DateTimeFormat("en-CA", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date());
+
+  const updateReasonSelection = (childId: number, reason: AbsentReason) => {
+    setReasonSelections((current) => ({
+      ...current,
+      [childId]: reason,
+    }));
+  };
+
+  const markCheckIn = async (childId: number) => {
+    setLoadingChildId(childId);
+
+    try {
+      await api.post("/attendance/checkin", { child_id: childId });
+      await fetchAttendance();
+    } finally {
+      setLoadingChildId(null);
+    }
+  };
+
+  const markAbsent = async (childId: number) => {
+    setLoadingChildId(childId);
+
+    try {
+      await api.post("/attendance/absent", {
+        child_id: childId,
+        absent_reason: reasonSelections[childId] ?? "sick",
+      });
+      await fetchAttendance();
+    } finally {
+      setLoadingChildId(null);
+    }
+  };
+
+  const markCheckOut = async (childId: number) => {
+    setLoadingChildId(childId);
+
+    try {
+      await api.post("/attendance/checkout", { child_id: childId });
+      await fetchAttendance();
+    } finally {
+      setLoadingChildId(null);
+    }
+  };
+
+  const attendanceSummary = records.reduce<Record<string, number>>((acc, record) => {
+    const status = getAttendanceStatus(record).text;
+    acc[status] = (acc[status] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const formatAnnouncementDate = (value: string) =>
+    new Intl.DateTimeFormat("en-CA", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(new Date(value));
+
+  const handleAnnouncementFieldChange = (
+    field: "title" | "detail" | "announcementDate",
+    value: string
+  ) => {
+    setAnnouncementForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const handleAnnouncementSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsPostingAnnouncement(true);
+
+    try {
+      await api.post("/announcements", {
+        title: announcementForm.title,
+        detail: announcementForm.detail,
+        announcement_date: announcementForm.announcementDate,
+      });
+
+      setAnnouncementForm({
+        title: "",
+        detail: "",
+        announcementDate: new Date().toISOString().split("T")[0],
+      });
+
+      await fetchAnnouncements();
+    } finally {
+      setIsPostingAnnouncement(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="grid gap-6 xl:grid-cols-[1.7fr_1fr]">
+        <Card className="overflow-hidden p-0">
+          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 px-8 py-8 text-white">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300">
+                  Little Haven
+                </p>
+                <h2 className="mt-3 text-4xl font-bold">Students</h2>
+                <p className="mt-2 text-sm text-slate-300">
+                  Where every Child feels at home
+                </p>
+              </div>
+              <div className="rounded-3xl border border-white/10 bg-white/10 px-5 py-4 text-right">
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-300">Today</p>
+                <p className="mt-2 text-lg font-semibold">{todayLabel}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-6 md:grid-cols-4">
+            <div className="rounded-3xl bg-slate-50 p-5 text-center">
+              <p className="text-sm text-slate-500">Total active students</p>
+              <p className="mt-3 text-4xl font-bold text-slate-900">{stats.total}</p>
+            </div>
+            <div className="rounded-3xl bg-sky-50 p-5 text-center">
+              <p className="text-sm text-slate-500">Checked in</p>
+              <p className="mt-3 text-4xl font-bold text-sky-700">{stats.checkedIn}</p>
+            </div>
+            <div className="rounded-3xl bg-emerald-50 p-5 text-center">
+              <p className="text-sm text-slate-500">Checked out</p>
+              <p className="mt-3 text-4xl font-bold text-emerald-700">{stats.checkedOut}</p>
+            </div>
+            <div className="rounded-3xl bg-rose-50 p-5 text-center">
+              <p className="text-sm text-slate-500">Absent</p>
+              <p className="mt-3 text-4xl font-bold text-rose-700">{stats.absent}</p>
+            </div>
+          </div>
+        </Card>
+
+        <div className="space-y-6">
+          <Card>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-xl font-semibold text-slate-900">Announcements</h3>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                {announcements.length} posted
+              </span>
+            </div>
+
+            {canPostAnnouncements && (
+              <form onSubmit={handleAnnouncementSubmit} className="mt-4 space-y-3 rounded-2xl bg-slate-50 p-4">
+                <input
+                  value={announcementForm.title}
+                  onChange={(event) => handleAnnouncementFieldChange("title", event.target.value)}
+                  placeholder="Announcement title"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                  required
+                />
+                <textarea
+                  value={announcementForm.detail}
+                  onChange={(event) => handleAnnouncementFieldChange("detail", event.target.value)}
+                  placeholder="Write the announcement details"
+                  className="min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                  required
+                />
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <input
+                    type="date"
+                    value={announcementForm.announcementDate}
+                    onChange={(event) =>
+                      handleAnnouncementFieldChange("announcementDate", event.target.value)
+                    }
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={isPostingAnnouncement}
+                    className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  >
+                    {isPostingAnnouncement ? "Posting..." : "Post announcement"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="mt-4 space-y-4">
+              {announcements.length === 0 && (
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                  No announcements posted yet.
+                </div>
+              )}
+              {announcements.map((item) => (
+                <div key={item.id} className="rounded-2xl bg-slate-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-semibold text-slate-900">{item.title}</p>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {formatAnnouncementDate(item.announcement_date)}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-slate-900">Birthdays Today</h3>
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-700">
+                {birthdaysToday.length}
+              </span>
+            </div>
+            <div className="mt-4 space-y-3">
+              {birthdaysToday.length === 0 && (
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                  No birthdays recorded for today yet.
+                </div>
+              )}
+              {birthdaysToday.map((child) => (
+                <div key={child.id} className="rounded-2xl bg-amber-50 p-4">
+                  <p className="font-semibold text-slate-900">{child.name}</p>
+                  <p className="mt-1 text-sm text-slate-600">Turning point celebration day</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      <Card className="overflow-hidden p-0">
+        <div className="border-b border-slate-100 px-6 py-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-2xl font-semibold text-slate-900">Today&apos;s child list</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Check children in, mark them absent, or complete their day from the dashboard.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              {Object.entries(attendanceSummary).length > 0
+                ? Object.entries(attendanceSummary)
+                    .map(([label, count]) => `${label}: ${count}`)
+                    .join(" | ")
+                : "No attendance marked yet"}
+            </div>
+          </div>
+        </div>
+
+        <AttendanceRoster
+          records={records}
+          loadingChildId={loadingChildId}
+          reasonSelections={reasonSelections}
+          onReasonChange={updateReasonSelection}
+          onCheckIn={markCheckIn}
+          onAbsent={markAbsent}
+          onCheckOut={markCheckOut}
+        />
+      </Card>
+    </div>
+  );
+}
