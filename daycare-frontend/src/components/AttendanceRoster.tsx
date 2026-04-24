@@ -94,7 +94,6 @@ export default function AttendanceRoster({
           {records.map((record) => {
             const group = AGE_GROUPS.find((item) => item.key === getAgeGroup(record.age));
             const status = getAttendanceStatus(record);
-            const selectedReason = reasonSelections[record.child_id] ?? "sick";
             const isLoading = loadingChildId === record.child_id;
 
             return (
@@ -123,47 +122,47 @@ export default function AttendanceRoster({
                 </td>
 
                 <td className="px-6 py-5">
-                  <div className="flex min-w-[320px] flex-col gap-3">
+                  <div className="flex min-w-[430px] items-center gap-2">
                     <button
                       type="button"
                       onClick={() => onCheckIn(record.child_id)}
                       disabled={isLoading || (!!record.check_in && !record.check_out)}
-                      className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      className="whitespace-nowrap rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                       {record.check_in && !record.check_out ? "Checked in" : "Check in"}
                     </button>
 
-                    <div className="flex gap-3">
-                      <select
-                        value={selectedReason}
-                        onChange={(event) =>
-                          onReasonChange(record.child_id, event.target.value as AbsentReason)
-                        }
-                        disabled={isLoading}
-                        className="flex-1 rounded-2xl border border-slate-200 px-4 py-2 text-sm outline-none transition focus:border-sky-400 disabled:bg-slate-100"
-                      >
-                        {ABSENT_REASON_OPTIONS.map((reason) => (
-                          <option key={reason} value={reason}>
-                            {reason === "home day" ? "Home day" : reason[0].toUpperCase() + reason.slice(1)}
-                          </option>
-                        ))}
-                      </select>
+                    <select
+                      value=""
+                      onChange={(event) => {
+                        const reason = event.target.value as AbsentReason;
 
-                      <button
-                        type="button"
-                        onClick={() => onAbsent(record.child_id)}
-                        disabled={isLoading}
-                        className="rounded-2xl bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                      >
+                        if (!reason) {
+                          return;
+                        }
+
+                        onReasonChange(record.child_id, reason);
+                        onAbsent(record.child_id);
+                        event.target.value = "";
+                      }}
+                      disabled={isLoading}
+                      className="min-w-[144px] rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-white outline-none transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      <option value="" className="text-slate-700">
                         Mark absent
-                      </button>
-                    </div>
+                      </option>
+                      {ABSENT_REASON_OPTIONS.map((reason) => (
+                        <option key={reason} value={reason} className="text-slate-700">
+                          {reason === "home day" ? "Home day" : reason[0].toUpperCase() + reason.slice(1)}
+                        </option>
+                      ))}
+                    </select>
 
                     <button
                       type="button"
                       onClick={() => onCheckOut(record.child_id)}
                       disabled={isLoading || !record.check_in || !!record.check_out}
-                      className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      className="whitespace-nowrap rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       Check out
                     </button>

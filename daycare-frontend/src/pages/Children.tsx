@@ -5,6 +5,7 @@ import {
   AGE_GROUPS,
   getAgeGroup,
   normalizeChild,
+  type AgeGroupKey,
   type ChildRecord,
 } from "../data/ageGroups";
 
@@ -19,6 +20,7 @@ export default function Children() {
   const [profilePic, setProfilePic] = useState("");
   const [profilePicError, setProfilePicError] = useState("");
   const [editChild, setEditChild] = useState<ChildRecord | null>(null);
+  const [openGroup, setOpenGroup] = useState<AgeGroupKey | null>("toddlers");
 
   const fetchChildren = () => {
     api
@@ -130,6 +132,10 @@ export default function Children() {
   const assignedGroup = age
     ? AGE_GROUPS.find((group) => group.key === getAgeGroup(Number(age)))?.label
     : "Set age to preview";
+
+  const toggleGroup = (group: AgeGroupKey) => {
+    setOpenGroup((current) => (current === group ? null : group));
+  };
 
   return (
     <div className="space-y-6">
@@ -292,7 +298,11 @@ export default function Children() {
           {groupedChildren.map((group) => (
             <Card key={group.key} className="overflow-hidden p-0">
               <div className={`h-2 bg-gradient-to-r ${group.accent}`} />
-              <div className="border-b border-slate-100 px-6 py-5">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.key)}
+                className="w-full border-b border-slate-100 px-6 py-5 text-left transition hover:bg-slate-50"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h3 className="text-xl font-semibold text-slate-900">{group.label}</h3>
@@ -300,68 +310,75 @@ export default function Children() {
                       {group.ageRange} - {group.description}
                     </p>
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-sm font-semibold ${group.badge}`}>
-                    {group.children.length} children
-                  </span>
-                </div>
-              </div>
-
-              <div className="divide-y divide-slate-100">
-                {group.children.length === 0 && (
-                  <div className="px-6 py-5 text-sm text-slate-400">
-                    No children in this group yet.
+                  <div className="flex items-center gap-3">
+                    <span className={`rounded-full px-3 py-1 text-sm font-semibold ${group.badge}`}>
+                      {group.children.length} children
+                    </span>
+                    <span className="text-2xl leading-none text-slate-400">
+                      {openGroup === group.key ? "-" : "+"}
+                    </span>
                   </div>
-                )}
+                </div>
+              </button>
 
-                {group.children.map((child) => (
-                  <div
-                    key={child.id}
-                    className="flex flex-col gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 text-sm font-semibold text-slate-500">
-                        {child.profilePic ? (
-                          <img
-                            src={child.profilePic}
-                            alt={child.name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          child.name.slice(0, 2).toUpperCase()
-                        )}
-                      </div>
+              {openGroup === group.key && (
+                <div className="divide-y divide-slate-100">
+                  {group.children.length === 0 && (
+                    <div className="px-6 py-5 text-sm text-slate-400">
+                      No children in this group yet.
+                    </div>
+                  )}
 
-                      <div>
-                        <h4 className="text-lg font-semibold text-slate-900">{child.name}</h4>
-                        <div className="mt-1 flex flex-wrap gap-3 text-sm text-slate-500">
-                          <span>Age {child.age}</span>
-                          {child.birthDate && <span>Birthday: {child.birthDate}</span>}
-                          {child.gender && <span>Gender: {child.gender}</span>}
-                          {child.parentName && <span>Parent: {child.parentName}</span>}
-                          {child.parentPhone && <span>{child.parentPhone}</span>}
+                  {group.children.map((child) => (
+                    <div
+                      key={child.id}
+                      className="flex flex-col gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 text-sm font-semibold text-slate-500">
+                          {child.profilePic ? (
+                            <img
+                              src={child.profilePic}
+                              alt={child.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            child.name.slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+
+                        <div>
+                          <h4 className="text-lg font-semibold text-slate-900">{child.name}</h4>
+                          <div className="mt-1 flex flex-wrap gap-3 text-sm text-slate-500">
+                            <span>Age {child.age}</span>
+                            {child.birthDate && <span>Birthday: {child.birthDate}</span>}
+                            {child.gender && <span>Gender: {child.gender}</span>}
+                            {child.parentName && <span>Parent: {child.parentName}</span>}
+                            {child.parentPhone && <span>{child.parentPhone}</span>}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => startEditing(child)}
-                        className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-                        type="button"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteChild(child.id)}
-                        className="rounded-2xl bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
-                        type="button"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => startEditing(child)}
+                          className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                          type="button"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteChild(child.id)}
+                          className="rounded-2xl bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
+                          type="button"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </Card>
           ))}
         </div>
