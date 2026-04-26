@@ -116,7 +116,6 @@ export default function AttendancePage() {
         <AttendanceRoster
           records={filteredRecords}
           loadingChildId={loadingChildId}
-          reasonSelections={reasonSelections}
           onReasonChange={updateReasonSelection}
           onCheckIn={markCheckIn}
           onAbsent={markAbsent}

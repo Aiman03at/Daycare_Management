@@ -64,7 +64,13 @@ export default function Dashboard() {
   };
 
   const refreshDashboard = async () => {
-    await Promise.all([fetchChildren(), fetchAttendance(), fetchAnnouncements()]);
+    try {
+      await Promise.all([fetchChildren(), fetchAttendance(), fetchAnnouncements()]);
+    } catch (error: any) {
+      if (error?.response?.status !== 401 && error?.response?.status !== 403) {
+        console.error("Failed to refresh dashboard:", error);
+      }
+    }
   };
 
   useEffect(() => {
@@ -301,7 +307,6 @@ export default function Dashboard() {
         <AttendanceRoster
           records={groupRecords}
           loadingChildId={loadingChildId}
-          reasonSelections={reasonSelections}
           onReasonChange={updateReasonSelection}
           onCheckIn={markCheckIn}
           onAbsent={markAbsent}

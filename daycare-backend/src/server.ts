@@ -8,6 +8,7 @@ import childRoutes from "./routes/children.routes";
 import authRoutes from "./routes/auth.routes";
 import attendanceRoutes from "./routes/attendance.route";
 import announcementRoutes from "./routes/announcements.routes";
+import activitiesRoutes from "./routes/activities.routes";
 dotenv.config();
 
 
@@ -25,6 +26,7 @@ app.use("/api/children", childRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/activities", activitiesRoutes);
 app.get("/", (_, res) => {
   res.send("API running");
 });

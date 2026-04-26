@@ -1,9 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { api, BACKEND_BASE_URL } from "../api/client";
 import Card from "../components/Card";
 import {
   AGE_GROUPS,
+  getAgeGroup,
   getAgeGroupDefinition,
+  normalizeChild,
   type AgeGroupKey,
+  type ChildRecord,
 } from "../data/ageGroups";
 
 interface ActivityPost {
@@ -12,55 +16,108 @@ interface ActivityPost {
   note: string;
   group: AgeGroupKey;
   educator: string;
-  time: string;
+  created_at: string;
   photos: string[];
-  tags: string[];
+  tagged_children: Array<{
+    id: number;
+    name: string;
+  }>;
 }
 
-const initialPosts: ActivityPost[] = [
-  {
-    id: 1,
-    title: "Nature collage morning",
-    note:
-      "The toddlers explored leaves, soft fabric, and paper circles while we practiced naming colors and textures together.",
-    group: "toddlers",
-    educator: "Ms. Sofia",
-    time: "8:45 AM",
-    photos: ["Leaf basket", "Painty hands", "Circle table"],
-    tags: ["Sensory", "Fine motor", "Language"],
-  },
-  {
-    id: 2,
-    title: "Preschool garden journal",
-    note:
-      "Preschoolers checked the herb planters, drew what changed since Friday, and shared their observations with the class.",
-    group: "preschoolers",
-    educator: "Mr. Owen",
-    time: "10:10 AM",
-    photos: ["Garden check", "Drawing journals"],
-    tags: ["Science", "Observation", "Outdoor play"],
-  },
-  {
-    id: 3,
-    title: "Kinder bridge builders",
-    note:
-      "Kinder learners worked in pairs to design paper bridges and tested which shape could hold the most blocks.",
-    group: "kinder",
-    educator: "Ms. Priya",
-    time: "1:35 PM",
-    photos: ["Bridge test", "Block count", "Team share"],
-    tags: ["STEM", "Collaboration", "Problem solving"],
-  },
-];
+interface ActivityApiRecord {
+  id: number;
+  title: string;
+  note: string;
+  group: AgeGroupKey;
+  educator: string;
+  created_at: string;
+  photos: string[];
+  tagged_children: Array<{
+    id: number;
+    name: string;
+  }>;
+}
+
+function toDisplayDate(value: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function resolvePhotoSrc(value: string) {
+  if (value.startsWith("/uploads/")) {
+    return `${BACKEND_BASE_URL}${value}`;
+  }
+
+  return value;
+}
+
+async function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Failed to read file"));
+      }
+    };
+
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function Activities() {
-  const [posts, setPosts] = useState<ActivityPost[]>(initialPosts);
+  const [posts, setPosts] = useState<ActivityPost[]>([]);
+  const [children, setChildren] = useState<ChildRecord[]>([]);
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [group, setGroup] = useState<AgeGroupKey>("toddlers");
   const [educator, setEducator] = useState("");
-  const [photoCaption, setPhotoCaption] = useState("");
+  const [selectedChildIds, setSelectedChildIds] = useState<number[]>([]);
+  const [photoDataUrls, setPhotoDataUrls] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   const [activeFilter, setActiveFilter] = useState<AgeGroupKey | "all">("all");
+
+  useEffect(() => {
+    const loadPageData = async () => {
+      setIsLoading(true);
+      setErrorMessage("");
+
+      try {
+        const [activitiesResponse, childrenResponse] = await Promise.all([
+          api.get<ActivityApiRecord[]>("/activities"),
+          api.get("/children"),
+        ]);
+
+        setPosts(activitiesResponse.data);
+        setChildren(childrenResponse.data.map(normalizeChild));
+      } catch (error: any) {
+        setErrorMessage(error?.response?.data?.message ?? "Failed to load activities");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPageData();
+  }, []);
+
+  const childrenInSelectedGroup = useMemo(
+    () => children.filter((child) => getAgeGroup(child.age) === group),
+    [children, group]
+  );
+
+  useEffect(() => {
+    const allowedIds = new Set(childrenInSelectedGroup.map((child) => child.id));
+    setSelectedChildIds((current) => current.filter((id) => allowedIds.has(id)));
+  }, [childrenInSelectedGroup]);
 
   const filteredPosts = useMemo(() => {
     if (activeFilter === "all") {
@@ -73,32 +130,74 @@ export default function Activities() {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!title.trim() || !note.trim() || !educator.trim()) {
+    const submit = async () => {
+      if (!title.trim() || !note.trim() || !educator.trim()) {
+        setErrorMessage("Title, note, and educator are required.");
+        return;
+      }
+
+      if (selectedChildIds.length === 0) {
+        setErrorMessage("Please tag at least one child for this activity.");
+        return;
+      }
+
+      setIsSubmitting(true);
+      setErrorMessage("");
+
+      try {
+        const response = await api.post<ActivityPost>("/activities", {
+          title: title.trim(),
+          note: note.trim(),
+          group,
+          educator: educator.trim(),
+          child_ids: selectedChildIds,
+          photos: photoDataUrls,
+        });
+
+        setPosts((current) => [response.data, ...current]);
+        setTitle("");
+        setNote("");
+        setGroup("toddlers");
+        setEducator("");
+        setSelectedChildIds([]);
+        setPhotoDataUrls([]);
+      } catch (error: any) {
+        setErrorMessage(error?.response?.data?.message ?? "Failed to create activity");
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    submit();
+  };
+
+  const toggleChildTag = (childId: number) => {
+    setSelectedChildIds((current) =>
+      current.includes(childId)
+        ? current.filter((id) => id !== childId)
+        : [...current, childId]
+    );
+  };
+
+  const onFilesPicked = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+
+    if (files.length === 0) {
       return;
     }
 
-    const photos = photoCaption
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    try {
+      const encodedFiles = await Promise.all(files.map((file) => fileToDataUrl(file)));
+      setPhotoDataUrls((current) => [...current, ...encodedFiles]);
+    } catch {
+      setErrorMessage("Failed to read one or more selected images.");
+    } finally {
+      event.target.value = "";
+    }
+  };
 
-    const newPost: ActivityPost = {
-      id: Date.now(),
-      title: title.trim(),
-      note: note.trim(),
-      group,
-      educator: educator.trim(),
-      time: "Just now",
-      photos,
-      tags: [getAgeGroupDefinition(group).label, "Family update"],
-    };
-
-    setPosts((current) => [newPost, ...current]);
-    setTitle("");
-    setNote("");
-    setGroup("toddlers");
-    setEducator("");
-    setPhotoCaption("");
+  const removeSelectedPhoto = (indexToRemove: number) => {
+    setPhotoDataUrls((current) => current.filter((_, index) => index !== indexToRemove));
   };
 
   return (
@@ -139,11 +238,17 @@ export default function Activities() {
           <div className="border-b border-slate-100 px-6 py-5">
             <h3 className="text-xl font-semibold text-slate-900">New Activity Post</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Start with simple text placeholders for photos now, then we can connect real uploads next.
+              Create activity updates with tagged children and photos.
             </p>
           </div>
 
           <form className="space-y-4 px-6 py-5" onSubmit={handleSubmit}>
+            {errorMessage && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {errorMessage}
+              </div>
+            )}
+
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Activity title
@@ -201,21 +306,67 @@ export default function Activities() {
 
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
-                Photo captions
+                Upload activity photos
               </label>
               <input
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-sky-400"
-                value={photoCaption}
-                onChange={(event) => setPhotoCaption(event.target.value)}
-                placeholder="Comma separated, example: Splash table, Happy smiles"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                multiple
+                onChange={onFilesPicked}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-800"
               />
+
+              {photoDataUrls.length > 0 && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  {photoDataUrls.map((photo, index) => (
+                    <div key={`${photo}-${index}`} className="relative overflow-hidden rounded-2xl border border-slate-200">
+                      <img src={photo} alt={`Selected upload ${index + 1}`} className="h-24 w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeSelectedPhoto(index)}
+                        className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-xs font-semibold text-white"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Tag kids in this activity
+              </label>
+
+              <div className="max-h-48 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 p-3">
+                {childrenInSelectedGroup.length === 0 && (
+                  <p className="text-sm text-slate-400">No children available in this age group.</p>
+                )}
+
+                {childrenInSelectedGroup.map((child) => (
+                  <label
+                    key={child.id}
+                    className="flex cursor-pointer items-center justify-between rounded-xl bg-slate-50 px-3 py-2"
+                  >
+                    <span className="text-sm text-slate-700">{child.name}</span>
+                    <input
+                      type="checkbox"
+                      checked={selectedChildIds.includes(child.id)}
+                      onChange={() => toggleChildTag(child.id)}
+                      className="h-4 w-4 accent-slate-900"
+                    />
+                  </label>
+                ))}
+              </div>
             </div>
 
             <button
               type="submit"
+              disabled={isSubmitting}
               className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-800"
             >
-              Post activity update
+              {isSubmitting ? "Posting..." : "Post activity update"}
             </button>
           </form>
         </Card>
@@ -249,6 +400,18 @@ export default function Activities() {
             ))}
           </div>
 
+          {isLoading && (
+            <Card>
+              <p className="text-sm text-slate-500">Loading activities...</p>
+            </Card>
+          )}
+
+          {!isLoading && filteredPosts.length === 0 && (
+            <Card>
+              <p className="text-sm text-slate-500">No activity posts yet.</p>
+            </Card>
+          )}
+
           {filteredPosts.map((post) => {
             const groupDetails = getAgeGroupDefinition(post.group);
 
@@ -269,7 +432,7 @@ export default function Activities() {
                     </div>
                     <div className="text-right text-sm text-slate-500">
                       <p>{post.educator}</p>
-                      <p>{post.time}</p>
+                      <p>{toDisplayDate(post.created_at)}</p>
                     </div>
                   </div>
 
@@ -277,30 +440,28 @@ export default function Activities() {
 
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {post.photos.map((photo, index) => (
-                      <div
-                        key={`${post.id}-${photo}-${index}`}
-                        className={`rounded-3xl bg-gradient-to-br p-5 text-white shadow-sm ${groupDetails.accent}`}
-                      >
-                        <p className="text-xs uppercase tracking-[0.2em] text-white/75">
-                          Photo {index + 1}
-                        </p>
-                        <p className="mt-8 text-lg font-semibold">{photo}</p>
+                      <div key={`${post.id}-${photo}-${index}`} className="overflow-hidden rounded-3xl shadow-sm">
+                        <img
+                          src={resolvePhotoSrc(photo)}
+                          alt={`${post.title} photo ${index + 1}`}
+                          className="h-40 w-full object-cover"
+                        />
                       </div>
                     ))}
                     {post.photos.length === 0 && (
                       <div className="rounded-3xl border border-dashed border-slate-200 p-5 text-sm text-slate-400">
-                        No photo captions added yet.
+                        No photos uploaded yet.
                       </div>
                     )}
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {post.tags.map((tag) => (
+                    {post.tagged_children.map((child) => (
                       <span
-                        key={`${post.id}-${tag}`}
+                        key={`${post.id}-${child.id}`}
                         className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600"
                       >
-                        {tag}
+                        {child.name}
                       </span>
                     ))}
                   </div>

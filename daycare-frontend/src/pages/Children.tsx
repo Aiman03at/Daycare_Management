@@ -11,6 +11,8 @@ import {
 
 export default function Children() {
   const [children, setChildren] = useState<ChildRecord[]>([]);
+  const [isLoadingChildren, setIsLoadingChildren] = useState(true);
+  const [childrenError, setChildrenError] = useState("");
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [parentName, setParentName] = useState("");
@@ -23,6 +25,9 @@ export default function Children() {
   const [openGroup, setOpenGroup] = useState<AgeGroupKey | null>("toddlers");
 
   const fetchChildren = () => {
+    setIsLoadingChildren(true);
+    setChildrenError("");
+
     api
       .get("/children")
       .then((response) => {
@@ -30,6 +35,10 @@ export default function Children() {
       })
       .catch((error) => {
         console.error("Error fetching children:", error);
+        setChildrenError("We could not load the children list right now.");
+      })
+      .finally(() => {
+        setIsLoadingChildren(false);
       });
   };
 
@@ -43,6 +52,18 @@ export default function Children() {
       children: children.filter((child) => getAgeGroup(child.age) === group.key),
     }));
   }, [children]);
+
+  useEffect(() => {
+    if (children.length === 0) {
+      return;
+    }
+
+    const firstGroupWithChildren = groupedChildren.find((group) => group.children.length > 0);
+
+    if (firstGroupWithChildren) {
+      setOpenGroup(firstGroupWithChildren.key);
+    }
+  }, [children, groupedChildren]);
 
   const resetForm = () => {
     setName("");
@@ -295,6 +316,18 @@ export default function Children() {
         </Card>
 
         <div className="space-y-5">
+          {isLoadingChildren && (
+            <Card>
+              <p className="text-sm text-slate-500">Loading children...</p>
+            </Card>
+          )}
+
+          {childrenError && (
+            <Card>
+              <p className="text-sm font-medium text-rose-600">{childrenError}</p>
+            </Card>
+          )}
+
           {groupedChildren.map((group) => (
             <Card key={group.key} className="overflow-hidden p-0">
               <div className={`h-2 bg-gradient-to-r ${group.accent}`} />
@@ -313,6 +346,9 @@ export default function Children() {
                   <div className="flex items-center gap-3">
                     <span className={`rounded-full px-3 py-1 text-sm font-semibold ${group.badge}`}>
                       {group.children.length} children
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      {openGroup === group.key ? "Hide" : "View"}
                     </span>
                     <span className="text-2xl leading-none text-slate-400">
                       {openGroup === group.key ? "-" : "+"}

@@ -62,7 +62,6 @@ function formatTime(value: string | null) {
 export default function AttendanceRoster({
   records,
   loadingChildId,
-  reasonSelections,
   onReasonChange,
   onCheckIn,
   onAbsent,
@@ -70,7 +69,6 @@ export default function AttendanceRoster({
 }: {
   records: AttendanceRosterItem[];
   loadingChildId: number | null;
-  reasonSelections: Record<number, AbsentReason>;
   onReasonChange: (childId: number, reason: AbsentReason) => void;
   onCheckIn: (childId: number) => void;
   onAbsent: (childId: number) => void;
@@ -126,7 +124,11 @@ export default function AttendanceRoster({
                     <button
                       type="button"
                       onClick={() => onCheckIn(record.child_id)}
-                      disabled={isLoading || (!!record.check_in && !record.check_out)}
+                      disabled={
+                        isLoading ||
+                        !!record.absent_reason ||
+                        (!!record.check_in && !record.check_out)
+                      }
                       className="whitespace-nowrap rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                       {record.check_in && !record.check_out ? "Checked in" : "Check in"}
@@ -161,7 +163,12 @@ export default function AttendanceRoster({
                     <button
                       type="button"
                       onClick={() => onCheckOut(record.child_id)}
-                      disabled={isLoading || !record.check_in || !!record.check_out}
+                      disabled={
+                        isLoading ||
+                        !!record.absent_reason ||
+                        !record.check_in ||
+                        !!record.check_out
+                      }
                       className="whitespace-nowrap rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       Check out
