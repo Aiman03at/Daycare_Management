@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#16a34a" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)" />
+  <ellipse cx="380" cy="510" rx="210" ry="95" fill="rgba(255,255,255,0.22)" />
+  <ellipse cx="760" cy="430" rx="240" ry="105" fill="rgba(255,255,255,0.2)" />
+  <text x="90" y="310" font-family="Arial, sans-serif" font-size="68" fill="#fff" font-weight="700">Sensory Bin Play</text>
+  <text x="90" y="380" font-family="Arial, sans-serif" font-size="34" fill="rgba(255,255,255,0.92)">Textures, scoops, and discovery</text>
+</svg>
