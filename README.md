@@ -468,36 +468,6 @@ NODE_ENV=production npm start
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-### Code Review Process
-- Ensure tests pass
-- Follow project style guide
-- Update documentation
-- Add meaningful commit messages
-
----
-
-## 📄 License
-
-This project is licensed under the ISC License - see the LICENSE file for details.
-
----
-
-## 👥 Support & Contact
-
-For support, email support@littlehaven.com or open an issue in the repository.
-
----
-
 ## 🙏 Acknowledgments
 
 - Built with ❤️ for daycare centers
@@ -519,8 +489,5 @@ For support, email support@littlehaven.com or open an issue in the repository.
 
 **Made with ❤️ by the Little Haven Team**
 
-© 2024 Little Haven. All rights reserved.
-
-[⬆ Back to Top](#-little-haven---daycare-management-system)
 
 </div>
