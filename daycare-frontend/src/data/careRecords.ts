@@ -13,6 +13,7 @@ export interface BaseCareEntry {
 export interface MealEntry extends BaseCareEntry {
   mealType: "breakfast" | "lunch" | "snack";
   status: "all" | "most" | "some" | "refused";
+  images?: string[];
 }
 
 export interface ToiletEntry extends BaseCareEntry {

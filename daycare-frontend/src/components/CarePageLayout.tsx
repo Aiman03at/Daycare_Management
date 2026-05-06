@@ -20,6 +20,8 @@ interface CarePageLayoutProps<TEntry> {
   entries: TEntry[];
   renderForm: (children: ChildRecord[]) => React.ReactNode;
   renderEntry: (entry: TEntry) => React.ReactNode;
+  showChildrenList?: boolean;
+  renderMealsSummary?: () => React.ReactNode;
 }
 
 export default function CarePageLayout<TEntry>({
@@ -31,6 +33,8 @@ export default function CarePageLayout<TEntry>({
   entries,
   renderForm,
   renderEntry,
+  showChildrenList = true,
+  renderMealsSummary,
 }: CarePageLayoutProps<TEntry>) {
   const [children, setChildren] = useState<ChildRecord[]>([]);
 
@@ -81,37 +85,45 @@ export default function CarePageLayout<TEntry>({
         </Card>
 
         <div className="space-y-4">
-          <Card>
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-xl font-semibold text-slate-900">Group children</h3>
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${groupDetails.badge}`}>
-                {filteredChildren.length} children
-              </span>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {filteredChildren.length === 0 && (
-                <p className="text-sm text-slate-500">No children found in this age group yet.</p>
-              )}
-              {filteredChildren.map((child) => (
-                <div key={child.id} className="rounded-2xl bg-slate-50 px-4 py-3">
-                  <p className="font-semibold text-slate-900">{child.name}</p>
-                  <p className="text-sm text-slate-500">Age {child.age}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
+          {showChildrenList && (
+            <Card>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-xl font-semibold text-slate-900">Group children</h3>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${groupDetails.badge}`}>
+                  {filteredChildren.length} children
+                </span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {filteredChildren.length === 0 && (
+                  <p className="text-sm text-slate-500">No children found in this age group yet.</p>
+                )}
+                {filteredChildren.map((child) => (
+                  <div key={child.id} className="rounded-2xl bg-slate-50 px-4 py-3">
+                    <p className="font-semibold text-slate-900">{child.name}</p>
+                    <p className="text-sm text-slate-500">Age {child.age}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
           <div className="space-y-4">
-            {entries.length === 0 && (
-              <Card>
-                <p className="text-sm text-slate-500">
-                  No records for this age group yet. Add the first one from the form.
-                </p>
-              </Card>
+            {renderMealsSummary ? (
+              renderMealsSummary()
+            ) : (
+              <>
+                {entries.length === 0 && (
+                  <Card>
+                    <p className="text-sm text-slate-500">
+                      No records for this age group yet. Add the first one from the form.
+                    </p>
+                  </Card>
+                )}
+                {entries.map((entry, index) => (
+                  <div key={index}>{renderEntry(entry)}</div>
+                ))}
+              </>
             )}
-            {entries.map((entry, index) => (
-              <div key={index}>{renderEntry(entry)}</div>
-            ))}
           </div>
         </div>
       </section>
