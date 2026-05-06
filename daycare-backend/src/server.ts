@@ -10,6 +10,7 @@ import attendanceRoutes from "./routes/attendance.route";
 import announcementRoutes from "./routes/announcements.routes";
 import activitiesRoutes from "./routes/activities.routes";
 import mealsRoutes from "./routes/meals.routes";
+import toiletsRoutes from "./routes/toilets.routes";
 dotenv.config();
 
 
@@ -29,6 +30,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/activities", activitiesRoutes);
 app.use("/api/meals", mealsRoutes);
+app.use("/api/toilets", toiletsRoutes);
 app.get("/", (_, res) => {
   res.send("API running");
 });
