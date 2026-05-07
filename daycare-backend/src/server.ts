@@ -10,7 +10,7 @@ import attendanceRoutes from "./routes/attendance.route";
 import announcementRoutes from "./routes/announcements.routes";
 import activitiesRoutes from "./routes/activities.routes";
 import mealsRoutes from "./routes/meals.routes";
-import toiletsRoutes from "./routes/toilets.routes";
+import toiletsRoutes, { ensureToiletsSchema } from "./routes/toilets.routes";
 dotenv.config();
 
 
@@ -37,8 +37,18 @@ app.get("/", (_, res) => {
 
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    await ensureToiletsSchema();
+  } catch (err) {
+    console.error("Error ensuring toilets schema:", err);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+};
+
+startServer();
 
 export default app;
