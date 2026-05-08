@@ -13,13 +13,13 @@ import Incidents from "./pages/Incidents";
 import Health from "./pages/Health";
 import Supplies from "./pages/Supplies";
 import Sleep from "./pages/Sleep";
+import Messages from "./pages/Messages";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-
-         <Route path="/login" element={<Login />} /> 
+        <Route path="/login" element={<Login />} />
 
         <Route
           path="/"
@@ -30,10 +30,7 @@ export default function App() {
           }
         />
 
-        <Route
-          path="/dashboard"
-          element={<Navigate to="/" replace />}
-        />
+        <Route path="/dashboard" element={<Navigate to="/" replace />} />
 
         <Route
           path="/children"
@@ -145,6 +142,16 @@ export default function App() {
           }
         />
 
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Messages />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

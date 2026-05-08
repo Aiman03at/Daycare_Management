@@ -15,6 +15,7 @@ import incidentsRoutes, { ensureIncidentsSchema } from "./routes/incidents.route
 import healthRoutes, { ensureHealthSchema } from "./routes/health.routes";
 import sleepRoutes, { ensureSleepSchema } from "./routes/sleep.routes";
 import suppliesRoutes, { ensureSuppliesSchema } from "./routes/supplies.routes";
+import messagesRoutes, { ensureMessagesSchema } from "./routes/messages.routes";
 dotenv.config();
 
 
@@ -39,6 +40,7 @@ app.use("/api/incidents", incidentsRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/sleep", sleepRoutes);
 app.use("/api/supplies", suppliesRoutes);
+app.use("/api/messages", messagesRoutes);
 app.get("/", (_, res) => {
   res.send("API running");
 });
@@ -52,6 +54,7 @@ const startServer = async () => {
     await ensureHealthSchema();
     await ensureSleepSchema();
     await ensureSuppliesSchema();
+    await ensureMessagesSchema();
   } catch (err) {
     console.error("Error ensuring toilets schema:", err);
   }

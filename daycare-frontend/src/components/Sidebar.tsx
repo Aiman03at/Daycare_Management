@@ -13,6 +13,7 @@ export default function Sidebar() {
     { name: "Sleep", path: "/sleep" },
     { name: "Add New", path: "/add-new" },
     { name: "Attendance", path: "/attendance" },
+    { name: "Messages", path: "/messages" },
   ];
 
   return (
@@ -29,9 +30,7 @@ export default function Sidebar() {
             <div className="mt-1 text-xl font-bold text-slate-900">Little Haven</div>
           </div>
         </div>
-        <p className="mt-2 text-sm text-slate-500">
-          Where every Child feels at home
-        </p>
+        <p className="mt-2 text-sm text-slate-500">Where every Child feels at home</p>
       </div>
 
       <nav className="space-y-2 overflow-y-auto p-4">
