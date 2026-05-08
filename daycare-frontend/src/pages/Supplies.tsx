@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Card from "../components/Card";
 import CarePageLayout from "../components/CarePageLayout";
 import { createCareEntryId, formatEntryTime, useCareStore, type SupplyEntry } from "../data/careRecords";
 import { type AgeGroupKey, type ChildRecord } from "../data/ageGroups";
+import { api } from "../api/client";
 
 export default function Supplies() {
   const { store, setStore } = useCareStore();
@@ -11,13 +12,35 @@ export default function Supplies() {
   const [item, setItem] = useState<SupplyEntry["item"]>("diapers");
   const [status, setStatus] = useState<SupplyEntry["status"]>("ok");
   const [note, setNote] = useState("");
+  const [dbSupplies, setDbSupplies] = useState<SupplyEntry[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const entries = useMemo(
-    () => store.supplies.filter((entry) => entry.group === selectedGroup),
-    [selectedGroup, store.supplies]
-  );
+  useEffect(() => {
+    const fetchSupplies = async () => {
+      try {
+        const response = await api.get(`/supplies?group=${selectedGroup}`);
+        const formatted: SupplyEntry[] = response.data.map((row: any) => ({
+          id: String(row.id),
+          childId: row.child_id,
+          childName: row.child_name,
+          group: row.group_key as AgeGroupKey,
+          item: row.item as SupplyEntry["item"],
+          status: row.status as SupplyEntry["status"],
+          note: row.note,
+          createdAt: row.created_at,
+        }));
+        setDbSupplies(formatted);
+      } catch (error) {
+        console.error("Failed to fetch supplies:", error);
+      }
+    };
 
-  const handleSubmit = (children: ChildRecord[]) => (event: React.FormEvent<HTMLFormElement>) => {
+    fetchSupplies();
+  }, [selectedGroup]);
+
+  const entries = useMemo(() => dbSupplies, [dbSupplies]);
+
+  const handleSubmit = (children: ChildRecord[]) => async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const child = children.find((itemRecord) => itemRecord.id === Number(childId));
@@ -25,26 +48,44 @@ export default function Supplies() {
       return;
     }
 
-    const newEntry: SupplyEntry = {
-      id: createCareEntryId("supply"),
-      childId: child.id,
-      childName: child.name,
-      group: selectedGroup,
-      item,
-      status,
-      note: note.trim(),
-      createdAt: new Date().toISOString(),
-    };
+    setLoading(true);
+    try {
+      const response = await api.post(
+        "/supplies",
+        {
+          childId: child.id,
+          childName: child.name,
+          groupKey: selectedGroup,
+          item,
+          status,
+          note: note.trim(),
+        }
+      );
 
-    setStore((current) => ({
-      ...current,
-      supplies: [newEntry, ...current.supplies],
-    }));
+      const row = response.data;
+      const created: SupplyEntry = {
+        id: String(row.id),
+        childId: row.child_id,
+        childName: row.child_name,
+        group: row.group_key as AgeGroupKey,
+        item: row.item as SupplyEntry["item"],
+        status: row.status as SupplyEntry["status"],
+        note: row.note,
+        createdAt: row.created_at,
+      };
 
-    setChildId("");
-    setItem("diapers");
-    setStatus("ok");
-    setNote("");
+      setDbSupplies((prev) => [created, ...prev]);
+
+      setChildId("");
+      setItem("diapers");
+      setStatus("ok");
+      setNote("");
+    } catch (error) {
+      console.error("Error saving supply update:", error);
+      alert("Failed to save supply update. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,6 +96,7 @@ export default function Supplies() {
       selectedGroup={selectedGroup}
       onSelectGroup={setSelectedGroup}
       entries={entries}
+      showChildrenList={false}
       renderForm={(children) => (
         <form className="space-y-4" onSubmit={handleSubmit(children)}>
           <select
@@ -99,8 +141,8 @@ export default function Supplies() {
             onChange={(event) => setNote(event.target.value)}
             placeholder="Supply note"
           />
-          <button className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white">
-            Save supply update
+          <button disabled={loading} className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">
+            {loading ? "Saving..." : "Save supply update"}
           </button>
         </form>
       )}

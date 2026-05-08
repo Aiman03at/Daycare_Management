@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Card from "../components/Card";
 import CarePageLayout from "../components/CarePageLayout";
 import { createCareEntryId, formatEntryTime, useCareStore, type SleepEntry } from "../data/careRecords";
 import { type AgeGroupKey, type ChildRecord } from "../data/ageGroups";
+import { api } from "../api/client";
 
 export default function Sleep() {
   const { store, setStore } = useCareStore();
@@ -11,13 +12,35 @@ export default function Sleep() {
   const [duration, setDuration] = useState("");
   const [quality, setQuality] = useState<SleepEntry["quality"]>("asleep");
   const [note, setNote] = useState("");
+  const [dbSleep, setDbSleep] = useState<SleepEntry[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const entries = useMemo(
-    () => store.sleep.filter((entry) => entry.group === selectedGroup),
-    [selectedGroup, store.sleep]
-  );
+  useEffect(() => {
+    const fetchSleep = async () => {
+      try {
+        const response = await api.get(`/sleep?group=${selectedGroup}`);
+        const formatted: SleepEntry[] = response.data.map((row: any) => ({
+          id: String(row.id),
+          childId: row.child_id,
+          childName: row.child_name,
+          group: row.group_key as AgeGroupKey,
+          duration: row.duration,
+          quality: row.quality as SleepEntry["quality"],
+          note: row.note,
+          createdAt: row.created_at,
+        }));
+        setDbSleep(formatted);
+      } catch (error) {
+        console.error("Failed to fetch sleep logs:", error);
+      }
+    };
 
-  const handleSubmit = (children: ChildRecord[]) => (event: React.FormEvent<HTMLFormElement>) => {
+    fetchSleep();
+  }, [selectedGroup]);
+
+  const entries = useMemo(() => dbSleep, [dbSleep]);
+
+  const handleSubmit = (children: ChildRecord[]) => async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const child = children.find((item) => item.id === Number(childId));
@@ -25,26 +48,44 @@ export default function Sleep() {
       return;
     }
 
-    const newEntry: SleepEntry = {
-      id: createCareEntryId("sleep"),
-      childId: child.id,
-      childName: child.name,
-      group: selectedGroup,
-      duration: duration.trim(),
-      quality,
-      note: note.trim(),
-      createdAt: new Date().toISOString(),
-    };
+    setLoading(true);
+    try {
+      const response = await api.post(
+        "/sleep",
+        {
+          childId: child.id,
+          childName: child.name,
+          groupKey: selectedGroup,
+          duration: duration.trim(),
+          quality,
+          note: note.trim(),
+        }
+      );
 
-    setStore((current) => ({
-      ...current,
-      sleep: [newEntry, ...current.sleep],
-    }));
+      const row = response.data;
+      const created: SleepEntry = {
+        id: String(row.id),
+        childId: row.child_id,
+        childName: row.child_name,
+        group: row.group_key as AgeGroupKey,
+        duration: row.duration,
+        quality: row.quality as SleepEntry["quality"],
+        note: row.note,
+        createdAt: row.created_at,
+      };
 
-    setChildId("");
-    setDuration("");
-    setQuality("asleep");
-    setNote("");
+      setDbSleep((prev) => [created, ...prev]);
+
+      setChildId("");
+      setDuration("");
+      setQuality("asleep");
+      setNote("");
+    } catch (error) {
+      console.error("Error saving sleep log:", error);
+      alert("Failed to save sleep log. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,6 +96,7 @@ export default function Sleep() {
       selectedGroup={selectedGroup}
       onSelectGroup={setSelectedGroup}
       entries={entries}
+      showChildrenList={false}
       renderForm={(children) => (
         <form className="space-y-4" onSubmit={handleSubmit(children)}>
           <select
@@ -93,8 +135,8 @@ export default function Sleep() {
             onChange={(event) => setNote(event.target.value)}
             placeholder="Sleep note"
           />
-          <button className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white">
-            Save sleep log
+          <button disabled={loading} className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">
+            {loading ? "Saving..." : "Save sleep log"}
           </button>
         </form>
       )}

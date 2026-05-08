@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Card from "../components/Card";
 import CarePageLayout from "../components/CarePageLayout";
 import { createCareEntryId, formatEntryTime, useCareStore, type IncidentEntry } from "../data/careRecords";
 import { type AgeGroupKey, type ChildRecord } from "../data/ageGroups";
+import { api } from "../api/client";
 
 export default function Incidents() {
   const { store, setStore } = useCareStore();
@@ -11,13 +12,35 @@ export default function Incidents() {
   const [category, setCategory] = useState<IncidentEntry["category"]>("incident");
   const [severity, setSeverity] = useState<IncidentEntry["severity"]>("low");
   const [note, setNote] = useState("");
+  const [dbIncidents, setDbIncidents] = useState<IncidentEntry[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const entries = useMemo(
-    () => store.incidents.filter((entry) => entry.group === selectedGroup),
-    [selectedGroup, store.incidents]
-  );
+  useEffect(() => {
+    const fetchIncidents = async () => {
+      try {
+        const response = await api.get(`/incidents?group=${selectedGroup}`);
+        const formatted: IncidentEntry[] = response.data.map((row: any) => ({
+          id: String(row.id),
+          childId: row.child_id,
+          childName: row.child_name,
+          group: row.group_key as AgeGroupKey,
+          category: row.category as IncidentEntry["category"],
+          severity: row.severity as IncidentEntry["severity"],
+          note: row.note,
+          createdAt: row.created_at,
+        }));
+        setDbIncidents(formatted);
+      } catch (error) {
+        console.error("Failed to fetch incidents:", error);
+      }
+    };
 
-  const handleSubmit = (children: ChildRecord[]) => (event: React.FormEvent<HTMLFormElement>) => {
+    fetchIncidents();
+  }, [selectedGroup]);
+
+  const entries = useMemo(() => dbIncidents, [dbIncidents]);
+
+  const handleSubmit = (children: ChildRecord[]) => async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const child = children.find((item) => item.id === Number(childId));
@@ -25,26 +48,44 @@ export default function Incidents() {
       return;
     }
 
-    const newEntry: IncidentEntry = {
-      id: createCareEntryId("incident"),
-      childId: child.id,
-      childName: child.name,
-      group: selectedGroup,
-      category,
-      severity,
-      note: note.trim(),
-      createdAt: new Date().toISOString(),
-    };
+    setLoading(true);
+    try {
+      const response = await api.post(
+        "/incidents",
+        {
+          childId: child.id,
+          childName: child.name,
+          groupKey: selectedGroup,
+          category,
+          severity,
+          note: note.trim(),
+        }
+      );
 
-    setStore((current) => ({
-      ...current,
-      incidents: [newEntry, ...current.incidents],
-    }));
+      const row = response.data;
+      const created: IncidentEntry = {
+        id: String(row.id),
+        childId: row.child_id,
+        childName: row.child_name,
+        group: row.group_key as AgeGroupKey,
+        category: row.category as IncidentEntry["category"],
+        severity: row.severity as IncidentEntry["severity"],
+        note: row.note,
+        createdAt: row.created_at,
+      };
 
-    setChildId("");
-    setCategory("incident");
-    setSeverity("low");
-    setNote("");
+      setDbIncidents((prev) => [created, ...prev]);
+
+      setChildId("");
+      setCategory("incident");
+      setSeverity("low");
+      setNote("");
+    } catch (error) {
+      console.error("Error saving incident:", error);
+      alert("Failed to save incident. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,6 +96,7 @@ export default function Incidents() {
       selectedGroup={selectedGroup}
       onSelectGroup={setSelectedGroup}
       entries={entries}
+      showChildrenList={false}
       renderForm={(children) => (
         <form className="space-y-4" onSubmit={handleSubmit(children)}>
           <select
@@ -95,8 +137,8 @@ export default function Incidents() {
             onChange={(event) => setNote(event.target.value)}
             placeholder="Describe what happened"
           />
-          <button className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white">
-            Save report
+          <button disabled={loading} className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">
+            {loading ? "Saving..." : "Save report"}
           </button>
         </form>
       )}

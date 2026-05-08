@@ -11,6 +11,10 @@ import announcementRoutes from "./routes/announcements.routes";
 import activitiesRoutes from "./routes/activities.routes";
 import mealsRoutes from "./routes/meals.routes";
 import toiletsRoutes, { ensureToiletsSchema } from "./routes/toilets.routes";
+import incidentsRoutes, { ensureIncidentsSchema } from "./routes/incidents.routes";
+import healthRoutes, { ensureHealthSchema } from "./routes/health.routes";
+import sleepRoutes, { ensureSleepSchema } from "./routes/sleep.routes";
+import suppliesRoutes, { ensureSuppliesSchema } from "./routes/supplies.routes";
 dotenv.config();
 
 
@@ -18,7 +22,7 @@ dotenv.config();
 const app = express();
 
 app.use(cors({
-  origin: "http://localhost:5173", // 👈 your frontend URL
+  origin: ["http://localhost:5173", "http://localhost:5174"], // 👈 your frontend URL
   credentials: true,
 }));
 
@@ -31,6 +35,10 @@ app.use("/api/announcements", announcementRoutes);
 app.use("/api/activities", activitiesRoutes);
 app.use("/api/meals", mealsRoutes);
 app.use("/api/toilets", toiletsRoutes);
+app.use("/api/incidents", incidentsRoutes);
+app.use("/api/health", healthRoutes);
+app.use("/api/sleep", sleepRoutes);
+app.use("/api/supplies", suppliesRoutes);
 app.get("/", (_, res) => {
   res.send("API running");
 });
@@ -40,6 +48,10 @@ const PORT = process.env.PORT || 4000;
 const startServer = async () => {
   try {
     await ensureToiletsSchema();
+    await ensureIncidentsSchema();
+    await ensureHealthSchema();
+    await ensureSleepSchema();
+    await ensureSuppliesSchema();
   } catch (err) {
     console.error("Error ensuring toilets schema:", err);
   }

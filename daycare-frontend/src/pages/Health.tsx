@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Card from "../components/Card";
 import CarePageLayout from "../components/CarePageLayout";
 import { createCareEntryId, formatEntryTime, useCareStore, type HealthEntry } from "../data/careRecords";
 import { type AgeGroupKey, type ChildRecord } from "../data/ageGroups";
+import { api } from "../api/client";
 
 export default function Health() {
   const { store, setStore } = useCareStore();
@@ -11,13 +12,35 @@ export default function Health() {
   const [category, setCategory] = useState<HealthEntry["category"]>("check");
   const [status, setStatus] = useState<HealthEntry["status"]>("normal");
   const [note, setNote] = useState("");
+  const [dbHealth, setDbHealth] = useState<HealthEntry[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const entries = useMemo(
-    () => store.health.filter((entry) => entry.group === selectedGroup),
-    [selectedGroup, store.health]
-  );
+  useEffect(() => {
+    const fetchHealth = async () => {
+      try {
+        const response = await api.get(`/health?group=${selectedGroup}`);
+        const formatted: HealthEntry[] = response.data.map((row: any) => ({
+          id: String(row.id),
+          childId: row.child_id,
+          childName: row.child_name,
+          group: row.group_key as AgeGroupKey,
+          category: row.category as HealthEntry["category"],
+          status: row.status as HealthEntry["status"],
+          note: row.note,
+          createdAt: row.created_at,
+        }));
+        setDbHealth(formatted);
+      } catch (error) {
+        console.error("Failed to fetch health logs:", error);
+      }
+    };
 
-  const handleSubmit = (children: ChildRecord[]) => (event: React.FormEvent<HTMLFormElement>) => {
+    fetchHealth();
+  }, [selectedGroup]);
+
+  const entries = useMemo(() => dbHealth, [dbHealth]);
+
+  const handleSubmit = (children: ChildRecord[]) => async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const child = children.find((item) => item.id === Number(childId));
@@ -25,26 +48,44 @@ export default function Health() {
       return;
     }
 
-    const newEntry: HealthEntry = {
-      id: createCareEntryId("health"),
-      childId: child.id,
-      childName: child.name,
-      group: selectedGroup,
-      category,
-      status,
-      note: note.trim(),
-      createdAt: new Date().toISOString(),
-    };
+    setLoading(true);
+    try {
+      const response = await api.post(
+        "/health",
+        {
+          childId: child.id,
+          childName: child.name,
+          groupKey: selectedGroup,
+          category,
+          status,
+          note: note.trim(),
+        }
+      );
 
-    setStore((current) => ({
-      ...current,
-      health: [newEntry, ...current.health],
-    }));
+      const row = response.data;
+      const created: HealthEntry = {
+        id: String(row.id),
+        childId: row.child_id,
+        childName: row.child_name,
+        group: row.group_key as AgeGroupKey,
+        category: row.category as HealthEntry["category"],
+        status: row.status as HealthEntry["status"],
+        note: row.note,
+        createdAt: row.created_at,
+      };
 
-    setChildId("");
-    setCategory("check");
-    setStatus("normal");
-    setNote("");
+      setDbHealth((prev) => [created, ...prev]);
+
+      setChildId("");
+      setCategory("check");
+      setStatus("normal");
+      setNote("");
+    } catch (error) {
+      console.error("Error saving health log:", error);
+      alert("Failed to save health log. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,6 +96,7 @@ export default function Health() {
       selectedGroup={selectedGroup}
       onSelectGroup={setSelectedGroup}
       entries={entries}
+      showChildrenList={false}
       renderForm={(children) => (
         <form className="space-y-4" onSubmit={handleSubmit(children)}>
           <select
@@ -96,8 +138,8 @@ export default function Health() {
             onChange={(event) => setNote(event.target.value)}
             placeholder="Health note"
           />
-          <button className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white">
-            Save health log
+          <button disabled={loading} className="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">
+            {loading ? "Saving..." : "Save health log"}
           </button>
         </form>
       )}
