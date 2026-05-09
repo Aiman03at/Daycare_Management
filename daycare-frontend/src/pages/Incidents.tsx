@@ -1,12 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
 import Card from "../components/Card";
 import CarePageLayout from "../components/CarePageLayout";
-import { createCareEntryId, formatEntryTime, useCareStore, type IncidentEntry } from "../data/careRecords";
+import { useCareStore, type IncidentEntry } from "../data/careRecords";
 import { type AgeGroupKey, type ChildRecord } from "../data/ageGroups";
 import { api } from "../api/client";
 
 export default function Incidents() {
-  const { store, setStore } = useCareStore();
+  useCareStore();
   const [selectedGroup, setSelectedGroup] = useState<AgeGroupKey>("toddlers");
   const [childId, setChildId] = useState("");
   const [category, setCategory] = useState<IncidentEntry["category"]>("incident");

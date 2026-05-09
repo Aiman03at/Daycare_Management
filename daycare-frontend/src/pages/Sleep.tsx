@@ -1,12 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
 import Card from "../components/Card";
 import CarePageLayout from "../components/CarePageLayout";
-import { createCareEntryId, formatEntryTime, useCareStore, type SleepEntry } from "../data/careRecords";
+import { useCareStore, type SleepEntry } from "../data/careRecords";
 import { type AgeGroupKey, type ChildRecord } from "../data/ageGroups";
 import { api } from "../api/client";
 
 export default function Sleep() {
-  const { store, setStore } = useCareStore();
+  useCareStore();
   const [selectedGroup, setSelectedGroup] = useState<AgeGroupKey>("toddlers");
   const [childId, setChildId] = useState("");
   const [duration, setDuration] = useState("");

@@ -1,12 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
 import Card from "../components/Card";
 import CarePageLayout from "../components/CarePageLayout";
-import { createCareEntryId, formatEntryTime, useCareStore, type SupplyEntry } from "../data/careRecords";
+import { useCareStore, type SupplyEntry } from "../data/careRecords";
 import { type AgeGroupKey, type ChildRecord } from "../data/ageGroups";
 import { api } from "../api/client";
 
 export default function Supplies() {
-  const { store, setStore } = useCareStore();
+  useCareStore();
   const [selectedGroup, setSelectedGroup] = useState<AgeGroupKey>("toddlers");
   const [childId, setChildId] = useState("");
   const [item, setItem] = useState<SupplyEntry["item"]>("diapers");

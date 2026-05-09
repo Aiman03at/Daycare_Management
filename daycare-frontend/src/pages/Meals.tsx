@@ -1,13 +1,13 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import Card from "../components/Card";
 import CarePageLayout from "../components/CarePageLayout";
-import { createCareEntryId, formatEntryTime, useCareStore, type MealEntry } from "../data/careRecords";
+import { useCareStore, type MealEntry } from "../data/careRecords";
 import { type AgeGroupKey, type ChildRecord, getAgeGroup } from "../data/ageGroups";
 import { api } from "../api/client";
 import type { AttendanceRosterItem } from "../components/AttendanceRoster";
 
 export default function Meals() {
-  const { store, setStore } = useCareStore();
+  useCareStore();
   const [selectedGroup, setSelectedGroup] = useState<AgeGroupKey>("toddlers");
   const [selectedChildIds, setSelectedChildIds] = useState<number[]>([]);
   const [mealType, setMealType] = useState<MealEntry["mealType"]>("lunch");
@@ -328,7 +328,7 @@ export default function Meals() {
           </button>
         </form>
       )}
-      renderEntry={(entry) => null}
+      renderEntry={() => null}
       renderMealsSummary={() => (
         <div className="space-y-6">
           {mealTypeOrder.map((type) => {

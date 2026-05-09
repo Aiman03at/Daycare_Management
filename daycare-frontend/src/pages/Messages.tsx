@@ -28,7 +28,7 @@ interface Reply {
 }
 
 export default function MessagesPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [, setMessages] = useState<Message[]>([]);
   const [filteredMessages, setFilteredMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCompose, setShowCompose] = useState(false);
