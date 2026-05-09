@@ -16,6 +16,7 @@ const ensureActivitiesSchema = async () => {
     activitiesSchemaReady = (async () => {
       await fs.mkdir(uploadsDirectory, { recursive: true });
 
+      // Create the merged activities table with JSON arrays
       await pool.query(
         `
           CREATE TABLE IF NOT EXISTS activities (
@@ -25,30 +26,55 @@ const ensureActivitiesSchema = async () => {
             group_key TEXT NOT NULL,
             educator TEXT NOT NULL,
             created_by INTEGER,
-            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            photos JSONB DEFAULT '[]'::jsonb,
+            tagged_children JSONB DEFAULT '[]'::jsonb
           )
         `
       );
 
-      await pool.query(
-        `
-          CREATE TABLE IF NOT EXISTS activity_photos (
-            id SERIAL PRIMARY KEY,
-            activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
-            image_path TEXT NOT NULL
-          )
-        `
+      // Check if old tables exist and migrate data if needed
+      const oldTablesCheck = await pool.query(
+        `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'activity_photos')`
       );
 
-      await pool.query(
-        `
-          CREATE TABLE IF NOT EXISTS activity_children (
-            activity_id INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
-            child_id INTEGER NOT NULL REFERENCES children(id) ON DELETE CASCADE,
-            PRIMARY KEY (activity_id, child_id)
-          )
-        `
-      );
+      if (oldTablesCheck.rows[0].exists) {
+        console.log("Migrating data from old activity tables...");
+        
+        try {
+          // Migrate photos data
+          await pool.query(`
+            UPDATE activities a
+            SET photos = COALESCE((
+              SELECT jsonb_agg(ap.image_path ORDER BY ap.id)
+              FROM activity_photos ap
+              WHERE ap.activity_id = a.id
+            ), '[]'::jsonb)
+            WHERE photos = '[]'::jsonb
+          `);
+
+          // Migrate children data
+          await pool.query(`
+            UPDATE activities a
+            SET tagged_children = COALESCE((
+              SELECT jsonb_agg(jsonb_build_object('id', c.id, 'name', c.name) ORDER BY c.name)
+              FROM activity_children ac
+              JOIN children c ON c.id = ac.child_id
+              WHERE ac.activity_id = a.id
+            ), '[]'::jsonb)
+            WHERE tagged_children = '[]'::jsonb
+          `);
+
+          // Drop old tables
+          await pool.query(`DROP TABLE IF EXISTS activity_children CASCADE`);
+          await pool.query(`DROP TABLE IF EXISTS activity_photos CASCADE`);
+
+          console.log("Migration completed successfully!");
+        } catch (migrationError) {
+          console.error("Migration error:", migrationError);
+          // Continue anyway as data might already be migrated
+        }
+      }
     })().catch((error) => {
       activitiesSchemaReady = null;
       throw error;
@@ -138,25 +164,16 @@ const resolvePhotoPath = async (value: unknown) => {
 
 const ACTIVITY_SELECT_QUERY = `
   SELECT
-    a.id,
-    a.title,
-    a.note,
-    a.group_key AS "group",
-    a.educator,
-    a.created_by,
-    a.created_at,
-    COALESCE((
-      SELECT json_agg(ap.image_path ORDER BY ap.id)
-      FROM activity_photos ap
-      WHERE ap.activity_id = a.id
-    ), '[]'::json) AS photos,
-    COALESCE((
-      SELECT json_agg(json_build_object('id', c.id, 'name', c.name) ORDER BY c.name)
-      FROM activity_children ac
-      JOIN children c ON c.id = ac.child_id
-      WHERE ac.activity_id = a.id
-    ), '[]'::json) AS tagged_children
-  FROM activities a
+    id,
+    title,
+    note,
+    group_key AS "group",
+    educator,
+    created_by,
+    created_at,
+    photos,
+    tagged_children
+  FROM activities
 `;
 
 router.get("/", authMiddleware, async (_req, res) => {
@@ -165,7 +182,7 @@ router.get("/", authMiddleware, async (_req, res) => {
 
     const result = await pool.query(
       `${ACTIVITY_SELECT_QUERY}
-       ORDER BY a.created_at DESC, a.id DESC`
+       ORDER BY created_at DESC, id DESC`
     );
 
     res.json(result.rows);
@@ -226,43 +243,39 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
   try {
     await client.query("BEGIN");
 
+    // Process and save photos
+    const processedPhotos: string[] = [];
+    for (const value of photoInputs) {
+      const resolvedPhotoPath = await resolvePhotoPath(value);
+      savedPhotoPaths.push(resolvedPhotoPath);
+      processedPhotos.push(resolvedPhotoPath);
+    }
+
+    // Get child data for tagged_children
+    const childrenResult = await client.query(
+      `SELECT id, name FROM children WHERE id = ANY($1::int[]) ORDER BY name`,
+      [childIds]
+    );
+    const taggedChildren = childrenResult.rows.map(row => ({
+      id: row.id,
+      name: row.name
+    }));
+
+    // Insert activity with photos and children as JSON arrays
     const createActivityResult = await client.query(
       `
-        INSERT INTO activities (title, note, group_key, educator, created_by)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO activities (title, note, group_key, educator, created_by, photos, tagged_children)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
       `,
-      [title, note, group, educator, req.user?.id ?? null]
+      [title, note, group, educator, req.user?.id ?? null, JSON.stringify(processedPhotos), JSON.stringify(taggedChildren)]
     );
 
     const activityId = createActivityResult.rows[0].id;
 
-    for (const value of photoInputs) {
-      const resolvedPhotoPath = await resolvePhotoPath(value);
-      savedPhotoPaths.push(resolvedPhotoPath);
-
-      await client.query(
-        `
-          INSERT INTO activity_photos (activity_id, image_path)
-          VALUES ($1, $2)
-        `,
-        [activityId, resolvedPhotoPath]
-      );
-    }
-
-    for (const childId of childIds) {
-      await client.query(
-        `
-          INSERT INTO activity_children (activity_id, child_id)
-          VALUES ($1, $2)
-        `,
-        [activityId, childId]
-      );
-    }
-
     const createdActivityResult = await client.query(
       `${ACTIVITY_SELECT_QUERY}
-       WHERE a.id = $1`,
+       WHERE id = $1`,
       [activityId]
     );
 
