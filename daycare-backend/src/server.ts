@@ -4,8 +4,8 @@ import dotenv from "dotenv";
 import "./db/index";
 import cors from "cors";
 import path from "path";
-import childRoutes from "./routes/children.routes";
-import authRoutes from "./routes/auth.routes";
+import childRoutes, { ensureChildrenSchema } from "./routes/children.routes";
+import authRoutes, { ensureUsersSchema } from "./routes/auth.routes";
 import attendanceRoutes from "./routes/attendance.route";
 import announcementRoutes from "./routes/announcements.routes";
 import activitiesRoutes from "./routes/activities.routes";
@@ -16,6 +16,7 @@ import healthRoutes, { ensureHealthSchema } from "./routes/health.routes";
 import sleepRoutes, { ensureSleepSchema } from "./routes/sleep.routes";
 import suppliesRoutes, { ensureSuppliesSchema } from "./routes/supplies.routes";
 import messagesRoutes, { ensureMessagesSchema } from "./routes/messages.routes";
+import aiRoutes from "./routes/ai.routes";
 dotenv.config();
 
 
@@ -41,6 +42,7 @@ app.use("/api/health", healthRoutes);
 app.use("/api/sleep", sleepRoutes);
 app.use("/api/supplies", suppliesRoutes);
 app.use("/api/messages", messagesRoutes);
+app.use("/api/ai", aiRoutes);
 app.get("/", (_, res) => {
   res.send("API running");
 });
@@ -49,6 +51,8 @@ const PORT = process.env.PORT || 4000;
 
 const startServer = async () => {
   try {
+    await ensureUsersSchema();
+    await ensureChildrenSchema();
     await ensureToiletsSchema();
     await ensureIncidentsSchema();
     await ensureHealthSchema();
@@ -56,7 +60,7 @@ const startServer = async () => {
     await ensureSuppliesSchema();
     await ensureMessagesSchema();
   } catch (err) {
-    console.error("Error ensuring toilets schema:", err);
+    console.error("Error ensuring schema:", err);
   }
 
   app.listen(PORT, () => {

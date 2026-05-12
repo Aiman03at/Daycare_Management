@@ -14,6 +14,8 @@ import Health from "./pages/Health";
 import Supplies from "./pages/Supplies";
 import Sleep from "./pages/Sleep";
 import Messages from "./pages/Messages";
+import AIReports from "./pages/AIReports";
+import Assessments from "./pages/Assessments";
 
 export default function App() {
   return (
@@ -152,6 +154,9 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="/ai-reports" element={<AIReports />} />
+        <Route path="/assessments" element={<Assessments />} />
       </Routes>
     </BrowserRouter>
   );

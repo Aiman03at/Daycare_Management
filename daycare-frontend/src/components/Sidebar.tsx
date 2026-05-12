@@ -14,6 +14,8 @@ export default function Sidebar() {
     { name: "Add New", path: "/add-new" },
     { name: "Attendance", path: "/attendance" },
     { name: "Messages", path: "/messages" },
+    { name: "Daily Reports", path: "/ai-reports" },
+    { name: "Assessments", path: "/assessments" },
   ];
 
   return (

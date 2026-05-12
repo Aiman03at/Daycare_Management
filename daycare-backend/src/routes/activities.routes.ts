@@ -33,6 +33,21 @@ const ensureActivitiesSchema = async () => {
         `
       );
 
+      // Add missing columns if they don't exist
+      await pool.query(
+        `
+          ALTER TABLE activities
+          ADD COLUMN IF NOT EXISTS photos JSONB DEFAULT '[]'::jsonb
+        `
+      );
+
+      await pool.query(
+        `
+          ALTER TABLE activities
+          ADD COLUMN IF NOT EXISTS tagged_children JSONB DEFAULT '[]'::jsonb
+        `
+      );
+
       // Check if old tables exist and migrate data if needed
       const oldTablesCheck = await pool.query(
         `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'activity_photos')`
@@ -187,8 +202,8 @@ router.get("/", authMiddleware, async (_req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to load activities" });
+    console.error("Activities GET error:", error);
+    res.status(500).json({ error: "Failed to load activities", details: error instanceof Error ? error.message : String(error) });
   }
 });
 

@@ -7,8 +7,37 @@ const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "SECRET_KEY";
 const VALID_ROLES = new Set(["admin", "educator", "parent"]);
 
+// Initialize users table
+let usersSchemaReady: Promise<void> | null = null;
+
+export const ensureUsersSchema = async () => {
+  if (!usersSchemaReady) {
+    usersSchemaReady = (async () => {
+      await pool.query(
+        `
+          CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'parent',
+            created_at TIMESTAMP DEFAULT NOW()
+          )
+        `
+      );
+    })().catch((error) => {
+      usersSchemaReady = null;
+      throw error;
+    });
+  }
+
+  await usersSchemaReady;
+};
+
 // REGISTER
 router.post("/register", async (req, res) => {
+  await ensureUsersSchema();
+  
   const { name, email, password, role } = req.body;
   const normalizedRole = String(role || "").toLowerCase();
 
@@ -34,6 +63,8 @@ router.post("/register", async (req, res) => {
 
 // LOGIN
 router.post("/login", async (req, res) => {
+  await ensureUsersSchema();
+  
   const { email, password } = req.body;
 
   try {

@@ -2,16 +2,20 @@
 
 import "./db/index"; // Ensure DB connection is established before starting the app
 import express from "express";
-import { errorHandler } from "./middleware/error.middleware"; 
-
-
-
+import { errorHandler } from "./middleware/error.middleware";
+import aiRoutes from "./routes/ai.routes";
 
 
 const app = express();
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// AI Routes
+app.use("/api/ai", aiRoutes);
+
 app.use(errorHandler);
+
 app.get("/health", (_req, res) => {
   res.status(200).json({
     status: "OK",

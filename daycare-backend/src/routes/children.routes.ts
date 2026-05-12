@@ -15,6 +15,23 @@ const ensureChildrenSchema = async () => {
   if (!childSchemaReady) {
     childSchemaReady = (async () => {
       await fs.mkdir(uploadsDirectory, { recursive: true });
+
+      // Create children table if it doesn't exist
+      await pool.query(
+        `
+          CREATE TABLE IF NOT EXISTS children (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            age INTEGER,
+            group_key TEXT,
+            birth_date DATE,
+            gender TEXT,
+            profile_pic TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+          )
+        `
+      );
+
       await pool.query(
         `
           ALTER TABLE children
@@ -263,3 +280,4 @@ router.delete("/:id", authMiddleware,requireAdmin, async (req, res) => {
 });
 
 export default router;
+export { ensureChildrenSchema };
