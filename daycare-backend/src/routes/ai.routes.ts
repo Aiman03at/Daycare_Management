@@ -111,7 +111,6 @@ router.post("/daily-reports/generate", authMiddleware, async (req: Request, res:
       age: child.age,
       activities,
       meals,
-      attendanceSummary,
       behavior: behaviorNotes || "",
       sleep: sleepSummary || "",
       incidents,
