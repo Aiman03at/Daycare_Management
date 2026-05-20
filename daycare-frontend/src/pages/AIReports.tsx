@@ -232,7 +232,7 @@ export default function DailyReports() {
                 No reports yet. Generate today's report to get started.
               </p>
             ) : (
-              reportList.map((report) => (
+              reportList.map((report: DailyReport) => (
                 <button
                   key={report.id}
                   type="button"
@@ -240,7 +240,7 @@ export default function DailyReports() {
                     setActiveReport(report);
                     setSelectedTab("overview");
                   }}
-                  className={`w-full text-left bg-white rounded-lg shadow-lg overflow-hidden border transition ${activeReport?.id === report.id ? "border-blue-500 ring-2 ring-blue-100" : "border-transparent hover:border-slate-200"}`}
+                  className="w-full text-left bg-white rounded-lg shadow-lg overflow-hidden border border-transparent transition hover:border-slate-200"
                 >
                   <div className="bg-blue-50 p-4 border-l-4 border-blue-600">
                     <h3 className="text-lg font-semibold text-gray-900">
