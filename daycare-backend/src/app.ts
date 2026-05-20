@@ -1,15 +1,26 @@
 
 
-import "./db/index"; // Ensure DB connection is established before starting the app
+import "./db/index";
 import express from "express";
+import cors from "cors";
 import { errorHandler } from "./middleware/error.middleware";
 import aiRoutes from "./routes/ai.routes";
 
-
 const app = express();
+
+// CORS — must be before all routes
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://daycare-management-lake.vercel.app'
+  ],
+  credentials: true
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// rest of your code...
 
 // AI Routes
 app.use("/api/ai", aiRoutes);
