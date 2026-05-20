@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api/client";
 
 interface Assessment {
@@ -127,11 +127,6 @@ export default function ChildAssessments() {
       console.error("Failed to create assessment:", error);
       alert("Failed to create assessment");
     }
-  };
-
-  const getChildName = (childId: number) => {
-    const child = children.find((c) => c.id === childId);
-    return child?.name || "Unknown";
   };
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api/client";
 
 interface DailyReport {
@@ -54,7 +54,7 @@ export default function DailyReports() {
     setLoading(true);
     try {
       const response = await api.get(`/ai/daily-reports/${childId}`);
-      const fetchedReports = response.data.reports || [];
+      const fetchedReports: DailyReport[] = response.data.reports || [];
       setReports(fetchedReports);
       setActiveReport((current) => current ?? fetchedReports[0] ?? null);
     } catch (error) {
@@ -230,7 +230,7 @@ export default function DailyReports() {
                 No reports yet. Generate today's report to get started.
               </p>
             ) : (
-              reports.map((report) => (
+              reports.map((report: DailyReport) => (
                 <button
                   key={report.id}
                   type="button"
