@@ -14,9 +14,24 @@ const ABSENT_REASONS = [
 
 let attendanceSchemaReady: Promise<void> | null = null;
 
-const ensureAttendanceSchema = async () => {
+export const ensureAttendanceSchema = async () => {
   if (!attendanceSchemaReady) {
     attendanceSchemaReady = (async () => {
+      await pool.query(
+        `
+          CREATE TABLE IF NOT EXISTS attendance (
+            id SERIAL PRIMARY KEY,
+            child_id INTEGER NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            check_in TIMESTAMP,
+            check_out TIMESTAMP,
+            absent_reason TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(child_id, date)
+          )
+        `
+      );
+
       await pool.query(
         `
           ALTER TABLE attendance

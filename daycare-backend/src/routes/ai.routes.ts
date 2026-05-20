@@ -16,153 +16,6 @@ const ensureSchema = async () => {
   }
 };
 
-// ============ DAILY REPORTS ============
-
-/**
- * POST /api/ai/daily-reports
- * Create a new daily report with AI analysis
- * Body: {
- *   child_id: number,
- *   activities: string[],
- *   meals: string[],
- *   behavior_notes: string,
- *   sleep_notes: string,
- *   incidents?: string[],
- *   educator_notes?: string
- * }
- */
-router.post("/daily-reports", authMiddleware, async (req: Request, res: Response) => {
-  try {
-    await ensureSchema();
-
-    const { child_id, activities, meals, behavior_notes, sleep_notes, incidents, educator_notes } =
-      req.body;
-    const user_id = (req as any).user.id;
-
-    // Validate input
-    if (!child_id || !activities || !meals) {
-      return res.status(400).json({
-        error: "Missing required fields: child_id, activities, meals",
-      });
-    }
-
-    // Get child details
-    const childResult = await pool.query("SELECT * FROM children WHERE id = $1", [child_id]);
-
-    if (childResult.rows.length === 0) {
-      return res.status(404).json({ error: "Child not found" });
-    }
-
-    const child = childResult.rows[0];
-
-    // Check if report already exists for today
-    const existingReport = await pool.query(
-      `SELECT id FROM daily_reports WHERE child_id = $1 AND date = CURRENT_DATE`,
-      [child_id]
-    );
-
-    // Prepare AI input
-    const aiInput: DailyReportInput = {
-      childId: child_id,
-      childName: child.name,
-      age: child.age,
-      activities,
-      meals,
-      behavior: behavior_notes,
-      sleep: sleep_notes,
-      incidents: incidents || [],
-      notes: educator_notes,
-    };
-
-    // Generate AI report
-    const aiReport = await aiService.generateDailyReport(aiInput);
-
-    // Log AI request
-    await pool.query(
-      `INSERT INTO ai_report_requests (child_id, report_type, request_data, response_data, api_provider, requested_by)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [child_id, "daily_report", JSON.stringify(aiInput), JSON.stringify(aiReport), process.env.AI_PROVIDER || "openai", user_id]
-    );
-
-    let result;
-
-    if (existingReport.rows.length > 0) {
-      // Update existing report
-      result = await pool.query(
-        `UPDATE daily_reports 
-         SET activities = $1, meals = $2, behavior_notes = $3, sleep_notes = $4, 
-             incidents = $5, educator_notes = $6, 
-             ai_summary = $7, ai_highlights = $8, ai_recommendations = $9, ai_areas_of_growth = $10,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $11 RETURNING *`,
-        [
-          activities,
-          meals,
-          behavior_notes,
-          sleep_notes,
-          incidents || [],
-          educator_notes,
-          aiReport.summary,
-          aiReport.highlights,
-          aiReport.recommendations,
-          aiReport.areas_of_growth,
-          existingReport.rows[0].id,
-        ]
-      );
-    } else {
-      // Create new report
-      result = await pool.query(
-        `INSERT INTO daily_reports 
-         (child_id, activities, meals, behavior_notes, sleep_notes, incidents, educator_notes,
-          ai_summary, ai_highlights, ai_recommendations, ai_areas_of_growth, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-         RETURNING *`,
-        [
-          child_id,
-          activities,
-          meals,
-          behavior_notes,
-          sleep_notes,
-          incidents || [],
-          educator_notes,
-          aiReport.summary,
-          aiReport.highlights,
-          aiReport.recommendations,
-          aiReport.areas_of_growth,
-          user_id,
-        ]
-      );
-    }
-
-    res.status(200).json({
-      message: "Daily report generated successfully",
-      report: result.rows[0],
-      ai_analysis: aiReport,
-    });
-  } catch (error) {
-    console.error("Error creating daily report:", error);
-
-    // Log failed request
-    if ((req as any).user?.id) {
-      await pool
-        .query(
-          `INSERT INTO ai_report_requests (report_type, status, error_message, requested_by, api_provider)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [
-            "daily_report",
-            "error",
-            (error as Error).message,
-            (req as any).user.id,
-            process.env.AI_PROVIDER || "openai",
-          ]
-        )
-        .catch((err) => console.error("Failed to log error:", err));
-    }
-
-    res.status(500).json({ error: "Failed to generate daily report" });
-  }
-});
-
 /**
  * POST /api/ai/daily-reports/generate
  * Auto-generate a daily report by aggregating today's data for a child
@@ -188,6 +41,21 @@ router.post("/daily-reports/generate", authMiddleware, async (req: Request, res:
 
     const child = childResult.rows[0];
 
+    const attendanceRes = await pool.query(
+      `SELECT check_in, check_out, absent_reason
+       FROM attendance
+       WHERE child_id = $1 AND date = CURRENT_DATE
+       LIMIT 1`,
+      [child_id]
+    );
+
+    const attendanceRecord = attendanceRes.rows[0];
+    const attendanceSummary = attendanceRecord
+      ? attendanceRecord.absent_reason
+        ? `Absent - ${attendanceRecord.absent_reason}`
+        : `Check-in: ${attendanceRecord.check_in ? new Date(attendanceRecord.check_in).toLocaleTimeString() : "N/A"}${attendanceRecord.check_out ? `, Check-out: ${new Date(attendanceRecord.check_out).toLocaleTimeString()}` : ", Check-out: pending"}`
+      : "No attendance record for today";
+
     // Aggregate today's activities (where tagged_children contains this child)
     const activitiesRes = await pool.query(
       `SELECT title, note FROM activities a
@@ -208,6 +76,12 @@ router.post("/daily-reports/generate", authMiddleware, async (req: Request, res:
       [child_id]
     );
     const meals = mealsRes.rows.map((r: any) => `${r.meal_type} - ${r.status}${r.note ? ': ' + r.note : ''}`);
+
+    const suppliesRes = await pool.query(
+      `SELECT item, status, note FROM supplies WHERE child_id = $1 AND created_at::date = CURRENT_DATE ORDER BY created_at ASC`,
+      [child_id]
+    );
+    const supplies = suppliesRes.rows.map((r: any) => `${r.item} - ${r.status}${r.note ? ': ' + r.note : ''}`);
 
     // Health logs
     const healthRes = await pool.query(
@@ -237,6 +111,8 @@ router.post("/daily-reports/generate", authMiddleware, async (req: Request, res:
       age: child.age,
       activities,
       meals,
+      supplies,
+      attendanceSummary,
       behavior: behaviorNotes || "",
       sleep: sleepSummary || "",
       incidents,
@@ -265,10 +141,11 @@ router.post("/daily-reports/generate", authMiddleware, async (req: Request, res:
       result = await pool.query(
         `UPDATE daily_reports 
          SET activities = $1, meals = $2, behavior_notes = $3, sleep_notes = $4, 
-             incidents = $5, educator_notes = $6, 
-             ai_summary = $7, ai_highlights = $8, ai_recommendations = $9, ai_areas_of_growth = $10,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $11 RETURNING *`,
+           incidents = $5, educator_notes = $6,
+           attendance_summary = $7, supplies = $8,
+           ai_summary = $9, ai_highlights = $10, ai_recommendations = $11, ai_areas_of_growth = $12,
+           updated_at = CURRENT_TIMESTAMP
+         WHERE id = $13 RETURNING *`,
         [
           activities,
           meals,
@@ -276,6 +153,8 @@ router.post("/daily-reports/generate", authMiddleware, async (req: Request, res:
           sleepSummary || null,
           incidents || [],
           null,
+          attendanceSummary,
+          supplies,
           aiReport.summary,
           aiReport.highlights,
           aiReport.recommendations,
@@ -287,8 +166,9 @@ router.post("/daily-reports/generate", authMiddleware, async (req: Request, res:
       result = await pool.query(
         `INSERT INTO daily_reports 
          (child_id, activities, meals, behavior_notes, sleep_notes, incidents, educator_notes,
+          attendance_summary, supplies,
           ai_summary, ai_highlights, ai_recommendations, ai_areas_of_growth, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [
           child_id,
@@ -298,6 +178,8 @@ router.post("/daily-reports/generate", authMiddleware, async (req: Request, res:
           sleepSummary || null,
           incidents || [],
           null,
+          attendanceSummary,
+          supplies,
           aiReport.summary,
           aiReport.highlights,
           aiReport.recommendations,
@@ -714,6 +596,68 @@ router.get("/usage-logs", authMiddleware, async (req: Request, res: Response) =>
   } catch (error) {
     console.error("Error fetching usage logs:", error);
     res.status(500).json({ error: "Failed to fetch usage logs" });
+  }
+});
+
+/**
+ * GET /api/ai/daily-summary-grouped
+ * Get all children present today with their daily reports, grouped by group_key
+ * Returns: { groupedReports: { [group_key]: [{ child, report }] } }
+ */
+router.get("/daily-summary-grouped", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    await ensureSchema();
+
+    // Get all children who have attendance records for today (checked in or marked absent)
+    const result = await pool.query(
+      `SELECT c.id, c.name, c.age, c.group_key,
+              a.check_in, a.check_out, a.absent_reason,
+              dr.id as report_id, dr.activities, dr.meals, dr.supplies, dr.attendance_summary,
+              dr.behavior_notes, dr.sleep_notes, dr.incidents,
+              dr.ai_summary, dr.ai_highlights, dr.ai_recommendations, dr.ai_areas_of_growth
+       FROM children c
+       INNER JOIN attendance a ON c.id = a.child_id AND a.date = CURRENT_DATE
+       LEFT JOIN daily_reports dr ON c.id = dr.child_id AND dr.date = CURRENT_DATE
+       ORDER BY c.group_key ASC, c.name ASC`
+    );
+
+    // Group the results by group_key
+    const groupedReports: any = {};
+    result.rows.forEach((row: any) => {
+      const groupKey = row.group_key || "Unassigned";
+      if (!groupedReports[groupKey]) {
+        groupedReports[groupKey] = [];
+      }
+
+      groupedReports[groupKey].push({
+        child_id: row.id,
+        child_name: row.name,
+        child_age: row.age,
+        check_in: row.check_in,
+        check_out: row.check_out,
+        absent_reason: row.absent_reason,
+        attendance_summary: row.attendance_summary,
+        report_id: row.report_id,
+        activities: row.activities || [],
+        meals: row.meals || [],
+        supplies: row.supplies || [],
+        behavior_notes: row.behavior_notes,
+        sleep_notes: row.sleep_notes,
+        incidents: row.incidents || [],
+        ai_summary: row.ai_summary,
+        ai_highlights: row.ai_highlights || [],
+        ai_recommendations: row.ai_recommendations || [],
+        ai_areas_of_growth: row.ai_areas_of_growth || [],
+      });
+    });
+
+    res.json({
+      date: new Date().toISOString().split("T")[0],
+      groupedReports,
+    });
+  } catch (error) {
+    console.error("Error fetching daily summary grouped:", error);
+    res.status(500).json({ error: "Failed to fetch daily summary", details: (error as Error).message });
   }
 });
 

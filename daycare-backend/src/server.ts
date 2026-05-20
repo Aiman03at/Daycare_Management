@@ -6,7 +6,7 @@ import cors from "cors";
 import path from "path";
 import childRoutes, { ensureChildrenSchema } from "./routes/children.routes";
 import authRoutes, { ensureUsersSchema } from "./routes/auth.routes";
-import attendanceRoutes from "./routes/attendance.route";
+import attendanceRoutes, { ensureAttendanceSchema } from "./routes/attendance.route";
 import announcementRoutes from "./routes/announcements.routes";
 import activitiesRoutes from "./routes/activities.routes";
 import mealsRoutes from "./routes/meals.routes";
@@ -17,6 +17,7 @@ import sleepRoutes, { ensureSleepSchema } from "./routes/sleep.routes";
 import suppliesRoutes, { ensureSuppliesSchema } from "./routes/supplies.routes";
 import messagesRoutes, { ensureMessagesSchema } from "./routes/messages.routes";
 import aiRoutes from "./routes/ai.routes";
+import { initializeAISchema } from "./db/ai.schema";
 dotenv.config();
 
 
@@ -53,12 +54,14 @@ const startServer = async () => {
   try {
     await ensureUsersSchema();
     await ensureChildrenSchema();
+    await ensureAttendanceSchema();
     await ensureToiletsSchema();
     await ensureIncidentsSchema();
     await ensureHealthSchema();
     await ensureSleepSchema();
     await ensureSuppliesSchema();
     await ensureMessagesSchema();
+    await initializeAISchema();
   } catch (err) {
     console.error("Error ensuring schema:", err);
   }

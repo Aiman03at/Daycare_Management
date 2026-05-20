@@ -13,8 +13,10 @@ export const initializeAISchema = async () => {
         id SERIAL PRIMARY KEY,
         child_id INTEGER NOT NULL REFERENCES children(id) ON DELETE CASCADE,
         date DATE NOT NULL DEFAULT CURRENT_DATE,
+        attendance_summary TEXT,
         activities TEXT[] DEFAULT '{}',
         meals TEXT[] DEFAULT '{}',
+        supplies TEXT[] DEFAULT '{}',
         behavior_notes TEXT,
         sleep_notes TEXT,
         incidents TEXT[],
@@ -29,6 +31,9 @@ export const initializeAISchema = async () => {
         UNIQUE(child_id, date)
       );
     `);
+
+    await pool.query(`ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS attendance_summary TEXT`);
+    await pool.query(`ALTER TABLE daily_reports ADD COLUMN IF NOT EXISTS supplies TEXT[] DEFAULT '{}'`);
 
     // Child Assessments Table
     await pool.query(`
@@ -69,14 +74,14 @@ export const initializeAISchema = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ai_report_requests (
         id SERIAL PRIMARY KEY,
-        child_id INTEGER NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+        child_id INTEGER,
         report_type VARCHAR(50) NOT NULL,
         request_data JSONB,
         response_data JSONB,
         api_provider VARCHAR(50),
         status VARCHAR(50) DEFAULT 'success',
         error_message TEXT,
-        requested_by INTEGER REFERENCES users(id),
+        requested_by INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
