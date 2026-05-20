@@ -64,6 +64,8 @@ export default function DailyReports() {
     }
   };
 
+  const reportList: DailyReport[] = reports;
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -230,7 +232,7 @@ export default function DailyReports() {
                 No reports yet. Generate today's report to get started.
               </p>
             ) : (
-              reports.map((report: DailyReport) => (
+              reportList.map((report) => (
                 <button
                   key={report.id}
                   type="button"
