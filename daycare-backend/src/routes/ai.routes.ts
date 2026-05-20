@@ -111,12 +111,11 @@ router.post("/daily-reports/generate", authMiddleware, async (req: Request, res:
       age: child.age,
       activities,
       meals,
-      supplies,
       attendanceSummary,
       behavior: behaviorNotes || "",
       sleep: sleepSummary || "",
       incidents,
-      notes: null,
+      notes: attendanceSummary,
     };
 
     // Generate AI report

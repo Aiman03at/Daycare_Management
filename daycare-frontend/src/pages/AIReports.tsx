@@ -7,7 +7,9 @@ interface DailyReport {
   child_name: string;
   date: string;
   activities: string[];
+  attendance_summary: string;
   meals: string[];
+  supplies: string[];
   behavior_notes: string;
   sleep_notes: string;
   incidents: string[];
@@ -23,17 +25,8 @@ export default function DailyReports() {
   const [selectedChildId, setSelectedChildId] = useState<number | null>(null);
   const [children, setChildren] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
   const [activeReport, setActiveReport] = useState<DailyReport | null>(null);
   const [selectedTab, setSelectedTab] = useState<string>("overview");
-  const [formData, setFormData] = useState({
-    activities: [] as string[],
-    meals: [] as string[],
-    behavior_notes: "",
-    sleep_notes: "",
-    incidents: [] as string[],
-    educator_notes: "",
-  });
 
   useEffect(() => {
     fetchChildren();
@@ -71,54 +64,6 @@ export default function DailyReports() {
     }
   };
 
-  const handleCreateReport = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!selectedChildId) {
-      alert("Please select a child");
-      return;
-    }
-
-    try {
-      const response = await api.post(`/ai/daily-reports`, {
-        child_id: selectedChildId,
-        ...formData,
-      });
-
-      setReports([response.data.report, ...reports]);
-      setShowForm(false);
-      setFormData({
-        activities: [],
-        meals: [],
-        behavior_notes: "",
-        sleep_notes: "",
-        incidents: [],
-        educator_notes: "",
-      });
-
-      alert("Report created successfully with AI analysis!");
-    } catch (error) {
-      console.error("Failed to create report:", error);
-      alert("Failed to create report");
-    }
-  };
-
-  const handleAddActivity = (activity: string) => {
-    if (activity.trim()) {
-      setFormData({
-        ...formData,
-        activities: [...formData.activities, activity],
-      });
-    }
-  };
-
-  const handleRemoveActivity = (index: number) => {
-    setFormData({
-      ...formData,
-      activities: formData.activities.filter((_, i) => i !== index),
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -126,7 +71,10 @@ export default function DailyReports() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Daily Reports</h1>
           <p className="text-gray-600 mt-2">
-            AI-powered daily activity reports for each child
+            Daily reports are built from daycare records. AI only writes the summary, highlights, and recommendations.
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Source data includes attendance, activities, meals, supplies, sleep, behavior notes, and incidents.
           </p>
         </div>
 
@@ -161,7 +109,6 @@ export default function DailyReports() {
                 setReports([newReport, ...reports]);
                 setActiveReport(newReport);
                 setSelectedTab("overview");
-                setShowForm(false);
                 alert("Daily report generated from today's data");
               } catch (error) {
                 console.error("Failed to generate daily report:", error);
@@ -174,130 +121,7 @@ export default function DailyReports() {
           >
             Generate Today's Report
           </button>
-
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-6 py-2 bg-slate-100 text-slate-800 rounded-lg hover:bg-slate-200 transition"
-          >
-            {showForm ? "Hide Legacy Form" : "Optional Manual Entry"}
-          </button>
         </div>
-
-        {/* Optional legacy form */}
-        {showForm && (
-          <form onSubmit={handleCreateReport} className="bg-white rounded-lg shadow p-6 mb-8 border border-slate-200">
-            <h2 className="text-xl font-semibold mb-2">Legacy Manual Report Entry</h2>
-            <p className="text-sm text-slate-500 mb-4">Use this only if you need to override or backfill a report manually.</p>
-
-            {/* Activities */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Activities
-              </label>
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  id="activity-input"
-                  placeholder="Add activity (e.g., Drawing, Playing)"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const input = document.getElementById(
-                      "activity-input"
-                    ) as HTMLInputElement;
-                    handleAddActivity(input.value);
-                    input.value = "";
-                  }}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  Add
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {formData.activities.map((activity, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                  >
-                    {activity}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveActivity(idx)}
-                      className="font-bold hover:text-blue-600"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Meals */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Meals & Snacks
-              </label>
-              <textarea
-                value={formData.meals.join("\n")}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  meals: e.target.value.split("\n").filter(m => m.trim()),
-                })}
-                placeholder="Enter meals/snacks (one per line)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                rows={3}
-              />
-            </div>
-
-            {/* Behavior Notes */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Behavior Notes
-              </label>
-              <textarea
-                value={formData.behavior_notes}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    behavior_notes: e.target.value,
-                  })
-                }
-                placeholder="Describe behavior observations"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                rows={3}
-              />
-            </div>
-
-            {/* Sleep Notes */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Sleep/Rest Time
-              </label>
-              <textarea
-                value={formData.sleep_notes}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    sleep_notes: e.target.value,
-                  })
-                }
-                placeholder="Describe sleep/rest observations"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                rows={3}
-              />
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              Generate AI Report
-            </button>
-          </form>
-        )}
 
         {/* Active Report Tabs or Reports List */}
         {activeReport ? (
@@ -305,10 +129,12 @@ export default function DailyReports() {
             <div className="flex gap-2 mb-4">
               {[
                 ["overview", "Overview"],
+                ["attendance", "Attendance"],
                 ["activities", "Activities"],
                 ["meals", "Meals"],
+                ["supplies", "Supplies"],
                 ["incidents", "Incidents"],
-                ["ai", "AI Summary"],
+                ["ai", "AI-Written Summary"],
               ].map(([key, label]) => (
                 <button
                   key={key}
@@ -334,6 +160,13 @@ export default function DailyReports() {
                 </div>
               )}
 
+              {selectedTab === "attendance" && (
+                <div>
+                  <h4 className="font-semibold mb-2">Attendance</h4>
+                  <p className="text-gray-700">{activeReport.attendance_summary || "No attendance data for today."}</p>
+                </div>
+              )}
+
               {selectedTab === "activities" && (
                 <div>
                   <h4 className="font-semibold mb-2">Activities</h4>
@@ -352,6 +185,19 @@ export default function DailyReports() {
                 </div>
               )}
 
+              {selectedTab === "supplies" && (
+                <div>
+                  <h4 className="font-semibold mb-2">Supplies</h4>
+                  {activeReport.supplies.length === 0 ? (
+                    <p>No supply records were posted today.</p>
+                  ) : (
+                    <ul className="list-disc list-inside">
+                      {activeReport.supplies.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               {selectedTab === "incidents" && (
                 <div>
                   <h4 className="font-semibold mb-2">Incidents</h4>
@@ -365,7 +211,7 @@ export default function DailyReports() {
 
               {selectedTab === "ai" && (
                 <div>
-                  <h4 className="font-semibold mb-2">AI Summary</h4>
+                  <h4 className="font-semibold mb-2">AI-Written Summary</h4>
                   <p className="mb-3">{activeReport.ai_summary}</p>
                   <h5 className="font-semibold">Highlights</h5>
                   <ul className="list-disc list-inside mb-3">

@@ -1,9 +1,6 @@
 import { Router } from "express";
 import pool from "../db";
-import { authMiddleware } from "../middleware/auth";
-import { requireAdmin } from "../middleware/role";
-import fs from "fs/promises";
-import path from "path";
+import { authMiddleware, type AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
@@ -88,7 +85,7 @@ export const ensureMessagesSchema = async () => {
 };
 
 // GET all messages for current user (educator/parent)
-router.get("/", authMiddleware, async (req, res) => {
+router.get("/", authMiddleware, async (req: AuthRequest, res) => {
   try {
     await ensureMessagesSchema();
     const { role } = req.user;
@@ -141,7 +138,7 @@ router.get("/", authMiddleware, async (req, res) => {
 });
 
 // GET message thread with replies
-router.get("/:id", authMiddleware, async (req, res) => {
+router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
   try {
     await ensureMessagesSchema();
     const { id } = req.params;
@@ -187,7 +184,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
 });
 
 // SEND MESSAGE - to single parent/child
-router.post("/send-to-parent", authMiddleware, async (req, res) => {
+router.post("/send-to-parent", authMiddleware, async (req: AuthRequest, res) => {
   try {
     await ensureMessagesSchema();
     const { role } = req.user;
@@ -247,7 +244,7 @@ router.post("/send-to-parent", authMiddleware, async (req, res) => {
 });
 
 // SEND MESSAGE - to multiple parents
-router.post("/send-to-multiple", authMiddleware, async (req, res) => {
+router.post("/send-to-multiple", authMiddleware, async (req: AuthRequest, res) => {
   try {
     await ensureMessagesSchema();
     const { role } = req.user;
@@ -316,7 +313,7 @@ router.post("/send-to-multiple", authMiddleware, async (req, res) => {
 });
 
 // SEND MESSAGE - to whole group/class
-router.post("/send-to-group", authMiddleware, async (req, res) => {
+router.post("/send-to-group", authMiddleware, async (req: AuthRequest, res) => {
   try {
     await ensureMessagesSchema();
     const { role } = req.user;
@@ -375,7 +372,7 @@ router.post("/send-to-group", authMiddleware, async (req, res) => {
 });
 
 // REPLY TO MESSAGE
-router.post("/:id/reply", authMiddleware, async (req, res) => {
+router.post("/:id/reply", authMiddleware, async (req: AuthRequest, res) => {
   try {
     await ensureMessagesSchema();
     const { id } = req.params;
@@ -462,7 +459,7 @@ router.put("/:id/unarchive", authMiddleware, async (req, res) => {
 });
 
 // MARK MESSAGE AS READ
-router.put("/:id/read", authMiddleware, async (req, res) => {
+router.put("/:id/read", authMiddleware, async (req: AuthRequest, res) => {
   try {
     await ensureMessagesSchema();
     const { id } = req.params;
@@ -484,7 +481,7 @@ router.put("/:id/read", authMiddleware, async (req, res) => {
 });
 
 // DELETE MESSAGE
-router.delete("/:id", authMiddleware, async (req, res) => {
+router.delete("/:id", authMiddleware, async (req: AuthRequest, res) => {
   try {
     await ensureMessagesSchema();
     const { id } = req.params;
