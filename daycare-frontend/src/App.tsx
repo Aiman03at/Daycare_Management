@@ -14,7 +14,7 @@ import Health from "./pages/Health";
 import Supplies from "./pages/Supplies";
 import Sleep from "./pages/Sleep";
 import Messages from "./pages/Messages";
-import AIReports from "./pages/AIReports";
+
 import Assessments from "./pages/Assessments";
 import DailySummary from "./pages/DailySummary";
 
@@ -156,7 +156,7 @@ export default function App() {
           }
         />
 
-        <Route path="/ai-reports" element={<AIReports />} />
+        
         <Route path="/assessments" element={<Assessments />} />
         <Route path="/daily-summary" element={<DailySummary />} />
       </Routes>
