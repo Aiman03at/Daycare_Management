@@ -25,7 +25,11 @@ dotenv.config();
 const app = express();
 
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:5174"], // 👈 your frontend URL
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://daycare-management-lake.vercel.app"
+  ],
   credentials: true,
 }));
 
